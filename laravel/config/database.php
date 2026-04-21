@@ -3,6 +3,13 @@
 use Illuminate\Support\Str;
 use Pdo\Mysql;
 
+// PHP runs inside Docker but .env often has DB_HOST=127.0.0.1 for the host machine; inside a container
+// that points to the app container itself, not the postgres service. Remap to the compose service name.
+$pgsqlHost = (string) env('DB_HOST', '127.0.0.1');
+if (file_exists('/.dockerenv') && in_array($pgsqlHost, ['127.0.0.1', 'localhost', '::1'], true)) {
+    $pgsqlHost = (string) env('DB_DOCKER_HOST', 'postgres');
+}
+
 return [
 
     /*
@@ -87,10 +94,11 @@ return [
         'pgsql' => [
             'driver' => 'pgsql',
             'url' => env('DB_URL'),
-            'host' => env('DB_HOST', '127.0.0.1'),
+            'host' => $pgsqlHost,
             'port' => env('DB_PORT', '5432'),
-            'database' => env('DB_DATABASE', 'laravel'),
-            'username' => env('DB_USERNAME', 'root'),
+            'database' => env('DB_DATABASE', 'fiscal'),
+            // Laravel's stock default was "root" (MySQL); PostgreSQL has no such role — local Docker uses fiscal/fiscal.
+            'username' => env('DB_USERNAME', 'fiscal'),
             'password' => env('DB_PASSWORD', ''),
             'charset' => env('DB_CHARSET', 'utf8'),
             'prefix' => '',

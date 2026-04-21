@@ -1,8 +1,11 @@
 <?php
 
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -12,8 +15,19 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->redirectGuestsTo(function (Request $request): ?string {
+            return $request->is('api/*') || $request->expectsJson()
+                ? null
+                : route('login');
+        });
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->render(function (AuthenticationException $e, Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json(
+                    ['message' => 'Unauthenticated.'],
+                    Response::HTTP_UNAUTHORIZED,
+                );
+            }
+        });
     })->create();
