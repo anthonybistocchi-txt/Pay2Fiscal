@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use App\Repositories\Auth\Contract\RegisterUserRepositoryInterface;
 use App\Repositories\Auth\RegisterUserRepository;
+use App\Repositories\Auth\LoginUserRepository;
+use App\Repositories\Auth\Contract\LoginUserRepositoryInterface;
 use App\Services\Auth\Contracts\LoginServiceInterface;
 use App\Services\Auth\Contracts\LogoutServiceInterface;
 use App\Services\Auth\Contracts\RegisterServiceInterface;
@@ -24,10 +26,11 @@ class AuthServiceProvider extends ServiceProvider
      * @var array<class-string, class-string>
      */
     private const BINDINGS = [
-        LoginServiceInterface::class => LoginService::class,
-        RegisterServiceInterface::class => RegisterService::class,
-        LogoutServiceInterface::class => LogoutService::class,
+        LoginServiceInterface::class           => LoginService::class,
+        RegisterServiceInterface::class        => RegisterService::class,
+        LogoutServiceInterface::class          => LogoutService::class,
         RegisterUserRepositoryInterface::class => RegisterUserRepository::class,
+        LoginUserRepositoryInterface::class    => LoginUserRepository::class,
     ];
 
     public function register(): void

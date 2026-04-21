@@ -7,6 +7,8 @@ use App\DTOs\Auth\UserData;
 use App\Exceptions\Auth\UserAlreadyExistsException;
 use App\Models\User;
 use App\Repositories\Auth\Contract\RegisterUserRepositoryInterface;
+use App\Repositories\Auth\DTO\RegisterUserInput;
+use App\Repositories\Auth\DTO\RegisterUserUniqueness;
 use App\Services\Auth\Contracts\RegisterServiceInterface;
 use Illuminate\Database\ConnectionInterface;
 
@@ -36,18 +38,18 @@ final class RegisterService implements RegisterServiceInterface
     {
         return $this->database->transaction(function () use ($data) {
 
-            if ($this->userAlreadyExists($data)) 
+            if ($this->userAlreadyExists($data))
             {
                 throw new UserAlreadyExistsException();
             }
 
-            return $this->registerUserRepository->register(new User([
-                'name'     => $data->name,
-                'email'    => $data->email,
-                'password' => $data->password,
-                'cpf'      => $data->cpf  ?? null,
-                'cnpj'     => $data->cnpj ?? null,
-            ]));
+            return $this->registerUserRepository->register(new RegisterUserInput(
+                name:     $data->name,
+                email:    $data->email,
+                password: $data->password,
+                cpf:      $data->cpf  ?? null,
+                cnpj:     $data->cnpj ?? null,
+            ));
         });
     }
 
@@ -56,10 +58,11 @@ final class RegisterService implements RegisterServiceInterface
      */
     private function userAlreadyExists(RegisterData $data): bool
     {
-        return $this->registerUserRepository->userAlreadyExists(new User([
-            'email' => $data->email,
-            'cpf'   => $data->cpf ?? null,
-            'cnpj'  => $data->cnpj ?? null,
-        ]));
+        return $this->registerUserRepository->userAlreadyExists(new RegisterUserUniqueness(
+            email: $data->email,
+            cpf:   $data->cpf  ?? null,
+            cnpj:  $data->cnpj ?? null,
+        ));
     }
+
 }

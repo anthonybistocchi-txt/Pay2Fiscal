@@ -4,7 +4,6 @@ namespace App\Services\Auth;
 
 use App\Models\User;
 use App\Services\Auth\Contracts\LogoutServiceInterface;
-use Laravel\Sanctum\PersonalAccessToken;
 
 final class LogoutService implements LogoutServiceInterface
 {
@@ -16,10 +15,6 @@ final class LogoutService implements LogoutServiceInterface
      */
     public function handle(User $user): void
     {
-        $token = $user->currentAccessToken();
-
-        if ($token instanceof PersonalAccessToken) {
-            $token->delete();
-        }
+        $user->tokens()->delete();
     }
 }

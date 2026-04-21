@@ -12,7 +12,6 @@ use App\Services\Auth\Contracts\LoginServiceInterface;
 use App\Services\Auth\Contracts\LogoutServiceInterface;
 use App\Services\Auth\Contracts\RegisterServiceInterface;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 class AuthController extends Controller
@@ -38,11 +37,11 @@ class AuthController extends Controller
         return $this->userDataResponse($userData, Response::HTTP_CREATED);
     }
 
-    public function logout(Request $request): JsonResponse
+    public function logout(): JsonResponse
     {
-        $this->logoutService->handle($request->user());
+        $this->logoutService->handle(auth()->user());
 
-        return response()->json(['message' => 'Logged out.']);
+        return response()->json(['message' => 'logged out'], Response::HTTP_OK);
     }
 
     private function authenticatedResponse(AuthenticatedUser $result, int $status): JsonResponse

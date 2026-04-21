@@ -8,7 +8,7 @@ use App\DTOs\Auth\RegisterData;
 interface RegisterServiceInterface
 {
     /**
-     * Persist a new user and issue an access token.
+     * Persist a new user.
      */
     public function handle(RegisterData $data): UserData;
 }
