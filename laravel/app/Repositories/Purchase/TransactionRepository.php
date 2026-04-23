@@ -8,6 +8,18 @@ use App\Repositories\Purchase\DTO\CreateTransactionInput;
 
 final class TransactionRepository implements TransactionRepositoryInterface
 {
+    public function findById(int $transactionId): Transaction
+    {
+        return Transaction::query()->findOrFail($transactionId);
+    }
+
+    public function updatePaymentStatus(int $transactionId, string $paymentStatus): void
+    {
+        Transaction::query()->whereKey($transactionId)->update([
+            'payment_status' => $paymentStatus,
+        ]);
+    }
+
     public function create(CreateTransactionInput $input): Transaction
     {
         return Transaction::create([

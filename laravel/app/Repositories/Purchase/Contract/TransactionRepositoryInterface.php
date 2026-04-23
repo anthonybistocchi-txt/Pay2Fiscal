@@ -8,4 +8,8 @@ use App\Repositories\Purchase\DTO\CreateTransactionInput;
 interface TransactionRepositoryInterface
 {
     public function create(CreateTransactionInput $input): Transaction;
+
+    public function findById(int $transactionId): Transaction;
+
+    public function updatePaymentStatus(int $transactionId, string $paymentStatus): void;
 }

@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Integrations\Go\Contracts\DispatchTransactionToFiscalServiceInterface;
+use App\Integrations\Go\DispatchTransactionToFiscalService;
 use App\Repositories\Purchase\Contract\TransactionRepositoryInterface;
 use App\Repositories\Purchase\TransactionRepository;
 use App\Services\Purchase\Contracts\PurchaseStoreServiceInterface;
@@ -19,6 +21,7 @@ class PurchaseServiceProvider extends ServiceProvider
     private const BINDINGS = [
         PurchaseStoreServiceInterface::class => PurchaseStoreService::class,
         TransactionRepositoryInterface::class => TransactionRepository::class,
+        DispatchTransactionToFiscalServiceInterface::class => DispatchTransactionToFiscalService::class,
     ];
 
     public function register(): void
