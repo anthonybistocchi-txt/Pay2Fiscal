@@ -36,12 +36,15 @@ final class DispatchTransactionToFiscalService implements DispatchTransactionToF
 
         $dispatchGoUrl = rtrim($goBaseUrl, '/').'/'.ltrim($goDispatchPath, '/');
 
-        try {
+        try 
+        {
             $goResponse = Http::timeout($goTimeout)
                 ->acceptJson()
                 ->asJson()
                 ->post($dispatchGoUrl, $this->buildRequestPayload($transaction));
-        } catch (Throwable $exception) {
+        } 
+        catch (Throwable $exception) 
+        {
             Log::warning('Failed to reach fiscal service', [
                 'transaction_id'   => $transactionPrimaryKey,
                 'transaction_uuid' => $transaction->transaction_uuid,

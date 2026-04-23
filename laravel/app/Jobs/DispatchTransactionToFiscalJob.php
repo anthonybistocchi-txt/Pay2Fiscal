@@ -45,9 +45,12 @@ class DispatchTransactionToFiscalJob implements ShouldBeUnique, ShouldQueue
     {
         $transactionRepository = resolve(TransactionRepositoryInterface::class);
 
-        try {
+        try 
+        {
             $transaction = $transactionRepository->findById($this->transactionId);
-        } catch (ModelNotFoundException $modelNotFoundException) {
+        } 
+        catch (ModelNotFoundException $modelNotFoundException) 
+        {
             Log::error('Failed to update transaction after dispatch job failure: transaction not found', [
                 'transaction_id' => $this->transactionId,
                 'error_hour'     => now()->format('Y-m-d H:i:s'),
