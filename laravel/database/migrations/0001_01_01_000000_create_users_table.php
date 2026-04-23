@@ -17,6 +17,14 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->string('cpf')->nullable()->unique()->index();
             $table->string('cnpj')->nullable()->unique()->index();
+            $table->string('street');
+            $table->string('number');
+            $table->string('complement')->nullable();
+            $table->string('neighborhood')->nullable();
+            $table->string('city')->nullable();
+            $table->string('state')->nullable();
+            $table->string('zip_code')->nullable();
+            $table->string('country')->nullable();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->rememberToken();

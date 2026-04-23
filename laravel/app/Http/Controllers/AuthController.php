@@ -20,8 +20,7 @@ class AuthController extends Controller
         private readonly LoginServiceInterface $loginService,
         private readonly RegisterServiceInterface $registerService,
         private readonly LogoutServiceInterface $logoutService,
-    ) {
-    }
+    ) {}
 
     public function login(LoginRequest $request): JsonResponse
     {
