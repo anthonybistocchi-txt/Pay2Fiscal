@@ -15,17 +15,16 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained('users');
             $table->foreignId('product_id')->constrained('products');
-            $table->integer('amount');
+            $table->integer('payment_amount');
             $table->enum('payment_method', ['CREDIT_CARD', 'DEBIT_CARD', 'PIX', 'BOLETO']);
             $table->enum('payment_status', ['PENDING', 'APPROVED', 'REJECTED', 'ERROR', 'REFUNDED']);
-            $table->dateTime('payment_date');
-            $table->integer('payment_amount');
-            $table->string('idempotency_key')->unique(); 
+            $table->dateTime('payment_date')->nullable();
+            $table->string('idempotency_key')->unique();
             $table->uuid('transaction_id')->unique();
-            $table->string('last_4_digits_card_number');
-            $table->string('card_brand');
-            $table->integer('gateway_id');
-            $table->timestamps();
+            $table->string('last_4_digits_card_number')->nullable();
+            $table->string('card_brand')->nullable();
+            $table->integer('gateway_id')->nullable();
+            $table->integer('quantity');
         });
     }
 

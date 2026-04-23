@@ -9,11 +9,16 @@ class Transaction extends Model
     protected $fillable = [
         'user_id',
         'product_id',
-        'amount',
-        'payment_method',
         'payment_amount',
-        'payment_date',
+        'payment_method',
         'payment_status',
+        'payment_date',
+        'card_brand',
+        'idempotency_key',
+        'transaction_id',
+        'gateway_id',
+        'last_4_digits_card_number',
+        'quantity',
     ];
 
     public function user()

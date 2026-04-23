@@ -4,7 +4,7 @@
 The Pay2Fiscal is a distributed backend ecosystem designed to demonstrate how to handle the critical lifecycle of a financial transaction. Instead of a single monolith, this project uses a polyglot architecture where each service is chosen for its specific strengths, ensuring high availability, data integrity, and resilience.
 
 ### The Flow
-- **Orchestration (Laravel)**: Acts as the entry point. It manages customer subscriptions and triggers the billing cycle by dispatching events.
+- **Orchestration (Laravel)**: Acts as the entry point, triggers the billing cycle by dispatching events.
 
 - **Payment Processing (Go)**: Consumes billing events to execute transactions. It focuses on atomic precision, using database locks and idempotency keys to ensure financial safety.
 
@@ -23,7 +23,7 @@ The Pay2Fiscal is a distributed backend ecosystem designed to demonstrate how to
 O Pay2Fiscal é um ecossistema de backend distribuído projetado para demonstrar como lidar com o ciclo de vida crítico de uma transação financeira. Em vez de um único monólito, este projeto utiliza uma arquitetura onde cada serviço é escolhido por suas forças específicas, garantindo alta disponibilidade, integridade de dados e resiliência.
 
 ### O Fluxo
-- **Orquestração (Laravel)**: Atua como o ponto de entrada. Gerencia as assinaturas dos clientes e inicia o ciclo de cobrança através do disparo de eventos.
+- **Orquestração (Laravel)**: Atua como o ponto de entrada, inicia o ciclo de cobrança através do disparo de eventos.
 
 - **Processamento de Pagamento (Go)**: Consome os eventos de cobrança para executar as transações. Foca na precisão atômica, utilizando locks de banco de dados e chaves de idempotência para garantir a segurança financeira.
 
