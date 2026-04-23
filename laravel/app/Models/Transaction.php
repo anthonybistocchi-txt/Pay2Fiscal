@@ -15,10 +15,16 @@ class Transaction extends Model
         'payment_date',
         'card_brand',
         'idempotency_key',
-        'transaction_id',
+        'transaction_uuid',
         'gateway_id',
         'last_4_digits_card_number',
         'quantity',
+        'dispatched_at',
+        'processed_at',
+        'failed_at',
+        'failure_reason',
+        'go_response_code',
+        'go_request_id',
     ];
 
     public function user()

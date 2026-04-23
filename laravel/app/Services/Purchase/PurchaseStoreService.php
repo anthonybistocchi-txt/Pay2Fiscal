@@ -15,7 +15,7 @@ use Log;
 
 final class PurchaseStoreService implements PurchaseStoreServiceInterface
 {
-    private const INITIAL_PAYMENT_STATUS = 'PENDING_PAYMENT';
+    private const INITIAL_STATUS = 'PENDING';
 
     public function __construct(
         private readonly ConnectionInterface $database,
@@ -34,9 +34,9 @@ final class PurchaseStoreService implements PurchaseStoreServiceInterface
                 productId:             $purchasePayload->productId,
                 paymentAmount:         $totalPaymentAmount,
                 paymentMethod:         $purchasePayload->paymentMethod,
-                paymentStatus:         self::INITIAL_PAYMENT_STATUS,
+                paymentStatus:         self::INITIAL_STATUS,
                 idempotencyKey:        Str::uuid()->toString(),
-                transactionId:         Str::uuid()->toString(),
+                transactionUuid:       Str::uuid()->toString(),
                 gatewayId:             null,
                 last4DigitsCardNumber: $purchasePayload->last4DigitsCardNumber,
                 cardBrand:             $purchasePayload->cardBrand,
@@ -52,7 +52,6 @@ final class PurchaseStoreService implements PurchaseStoreServiceInterface
 
             return new TransactionCreated(
                 idempotencyKey:         $persistedTransaction->idempotency_key,
-                transactionId:          $persistedTransaction->transaction_id,
                 paymentDate:            null,
                 gatewayId:              $persistedTransaction->gateway_id,
                 last4DigitsCardNumber:  $persistedTransaction->last_4_digits_card_number,
@@ -63,6 +62,7 @@ final class PurchaseStoreService implements PurchaseStoreServiceInterface
                 quantity:               $persistedTransaction->quantity,
                 user:                   $purchasePayload->user,
                 productId:              $persistedTransaction->product_id,
+                transactionUuid:        $persistedTransaction->transaction_uuid,
             );
         });
     }

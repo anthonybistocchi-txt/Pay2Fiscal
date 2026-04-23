@@ -22,7 +22,7 @@ class TransactionCreatedResource extends JsonResource
 
         return [
             'idempotency_key'           => $transactionCreated->idempotencyKey,
-            'transaction_id'            => $transactionCreated->transactionId,
+            'transaction_uuid'          => $transactionCreated->transactionUuid,
             'payment_date'              => $transactionCreated->paymentDate?->format(DateTimeInterface::ATOM),
             'gateway_id'                => $transactionCreated->gatewayId,
             'last_4_digits_card_number' => $transactionCreated->last4DigitsCardNumber,

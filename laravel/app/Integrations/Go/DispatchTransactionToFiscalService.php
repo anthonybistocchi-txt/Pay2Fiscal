@@ -5,6 +5,8 @@ namespace App\Integrations\Go;
 use App\Integrations\Go\Contracts\DispatchTransactionToFiscalServiceInterface;
 use App\Models\Transaction;
 use App\Repositories\Purchase\Contract\TransactionRepositoryInterface;
+use RuntimeException;
+use Throwable;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -14,58 +16,70 @@ final class DispatchTransactionToFiscalService implements DispatchTransactionToF
         private readonly TransactionRepositoryInterface $transactionRepository,
     ) {}
 
-    CONST GO_BASE_URL = config('services.fiscal_go.base_url');
-    CONST GO_TIMEOUT = config('services.fiscal_go.timeout');
-    CONST GO_DISPATCH_PATH = config('services.fiscal_go.dispatch_path');
-    CONST FAILED_PAYMENT_STATUS = 'FAILED_PAYMENT';
-    CONST PAID_PAYMENT_STATUS = 'PAID_PAYMENT';
-    CONST PENDING_PAYMENT_STATUS = 'PENDING_PAYMENT';
-
     public function dispatchByTransactionId(int $transactionPrimaryKey): void
     {
-        if (self::GO_BASE_URL === null || self::GO_BASE_URL === '') 
+        $goTimeout      = (int) config('services.fiscal_go.timeout');
+        $goBaseUrl      = (string) config('services.fiscal_go.base_url');
+        $goDispatchPath = (string) config('services.fiscal_go.dispatch_path');
+
+        if ($goBaseUrl === null || $goBaseUrl === '') 
         {
             Log::debug('Fiscal Go dispatch skipped: services.fiscal_go.base_url is not configured.', [
                 'transaction_id' => $transactionPrimaryKey,
                 'error_hour'     => now()->format('Y-m-d H:i:s'),
             ]);
-
+            
             return;
         }
 
         $transaction = $this->transactionRepository->findById($transactionPrimaryKey);
 
-        if(!$transaction)
-        {
-            Log::error('Transaction not found', [
-                'transaction_id' => $transactionPrimaryKey,
-                'error_hour'     => now()->format('Y-m-d H:i:s'),
-                'error_message'  => 'Transaction not found',
-                'error_file'     => __FILE__,
-                'error_line'     => __LINE__,
+        $dispatchGoUrl = rtrim($goBaseUrl, '/').'/'.ltrim($goDispatchPath, '/');
+
+        try {
+            $goResponse = Http::timeout($goTimeout)
+                ->acceptJson()
+                ->asJson()
+                ->post($dispatchGoUrl, $this->buildRequestPayload($transaction));
+        } catch (Throwable $exception) {
+            Log::warning('Failed to reach fiscal service', [
+                'transaction_id'   => $transactionPrimaryKey,
+                'transaction_uuid' => $transaction->transaction_uuid,
+                'error_hour'       => now()->format('Y-m-d H:i:s'),
+                'error_message'    => $exception->getMessage(),
+                'error_class'      => $exception::class,
             ]);
 
-            $this->transactionRepository->updatePaymentStatus($transactionPrimaryKey, self::FAILED_PAYMENT_STATUS);
-
-            return;
+            throw $exception;
         }
 
-        $requestTimeoutSeconds = (int) self::GO_TIMEOUT;
-        $dispatchUrl           = rtrim((string) self::GO_BASE_URL, '/').'/'.ltrim((string) self::GO_DISPATCH_PATH, '/');
+        if($goResponse->successful())
+        {
+            $this->transactionRepository->updatePaymentStatusSuccess($transactionPrimaryKey);
+        }
+        else
+        {
+            $goErrors = [
+                'go_response_code' => $goResponse->status(),
+                'go_request_id'    => $goResponse->json('request_id'),
+                'failure_reason'   => $goResponse->json('failure_reason'),
+            ];
 
-        Http::timeout($requestTimeoutSeconds)
-            ->acceptJson()
-            ->asJson()
-            ->post($dispatchUrl, $this->buildRequestPayload($transaction))
-            ->throw()
-            ->onSuccess(function () use ($transactionPrimaryKey): void 
-            {
-                $this->transactionRepository->updatePaymentStatus($transactionPrimaryKey, self::PAID_PAYMENT_STATUS);
-            })
-            ->onError(function () use ($transactionPrimaryKey): void 
-            {
-                $this->transactionRepository->updatePaymentStatus($transactionPrimaryKey, self::FAILED_PAYMENT_STATUS);
-            });
+            $this->transactionRepository->updatePaymentStatusFailed($transactionPrimaryKey, $goErrors);
+
+            Log::warning('Fiscal service rejected transaction dispatch', [
+                'transaction_id'   => $transactionPrimaryKey,
+                'transaction_uuid' => $transaction->transaction_uuid,
+                'error_hour'       => now()->format('Y-m-d H:i:s'),
+                'failure_reason'   => $goResponse->json('failure_reason'),
+                'go_response_code' => $goResponse->status(),
+                'go_request_id'    => $goResponse->json('request_id'),
+            ]);
+
+            throw new RuntimeException(
+                'Failed to dispatch transaction to fiscal service: '.($goErrors['failure_reason'] ?? 'unknown reason'),
+            );
+        }
     }
 
     /**
@@ -74,7 +88,7 @@ final class DispatchTransactionToFiscalService implements DispatchTransactionToF
     private function buildRequestPayload(Transaction $transaction): array
     {
         return [
-            'transaction_uuid'   => $transaction->transaction_id,
+            'transaction_uuid'   => $transaction->transaction_uuid,
             'idempotency_key'    => $transaction->idempotency_key,
             'user_id'            => $transaction->user_id,
             'product_id'         => $transaction->product_id,
