@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Repositories\Purchase\DTO;
+namespace App\Repositories\Transaction\DTO;
 
 /**
  * Payload for persisting a new transaction (repository boundary).

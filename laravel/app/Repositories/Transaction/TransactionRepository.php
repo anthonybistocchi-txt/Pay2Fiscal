@@ -1,15 +1,16 @@
 <?php
 
-namespace App\Repositories\Purchase;
+namespace App\Repositories\Transaction;
 
 use App\Models\Transaction;
-use App\Repositories\Purchase\Contract\TransactionRepositoryInterface;
-use App\Repositories\Purchase\DTO\CreateTransactionInput;
+use App\Repositories\Transaction\Contracts\TransactionRepositoryInterface;
+use App\Repositories\Transaction\DTO\CreateTransactionInput;
 
 final class TransactionRepository implements TransactionRepositoryInterface
 {
     private const APPROVED_PAYMENT_STATUS = 'APPROVED';
     private const ERROR_PAYMENT_STATUS = 'ERROR';
+    private const PROCESSING_PAYMENT_STATUS = 'PROCESSING';
     // private const REJECTED_PAYMENT_STATUS = 'REJECTED';
     // private const REFUNDED_PAYMENT_STATUS = 'REFUNDED';
 
@@ -18,7 +19,7 @@ final class TransactionRepository implements TransactionRepositoryInterface
         return Transaction::query()->findOrFail($transactionId);
     }
 
-    public function updatePaymentStatusSuccess(int $transactionId): void
+    public function markAsApproved(int $transactionId): void
     {
         Transaction::query()->whereKey($transactionId)->update([
             'payment_status'   => self::APPROVED_PAYMENT_STATUS,
@@ -32,7 +33,7 @@ final class TransactionRepository implements TransactionRepositoryInterface
         ]);
     }
 
-    public function updatePaymentStatusFailed(int $transactionId, array $goErrors): void
+    public function markAsError(int $transactionId, array $goErrors): void
     {
         Transaction::query()->whereKey($transactionId)->update([
             'payment_status'   => self::ERROR_PAYMENT_STATUS,
@@ -43,6 +44,20 @@ final class TransactionRepository implements TransactionRepositoryInterface
             'go_response_code' => $goErrors['go_response_code'],
             'go_request_id'    => $goErrors['go_request_id'],
             'processed_at'     => now(),
+        ]);
+    }
+
+    public function markAsProcessing(int $transactionId): void
+    {
+        Transaction::query()->whereKey($transactionId)->update([
+            'payment_status'   => self::PROCESSING_PAYMENT_STATUS,
+            'payment_date'     => null,
+            'dispatched_at'    => now(),
+            'failed_at'        => null,
+            'go_response_code' => null,
+            'go_request_id'    => null,
+            'failure_reason'   => null,
+            'processed_at'     => null,
         ]);
     }
 

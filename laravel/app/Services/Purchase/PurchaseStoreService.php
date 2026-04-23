@@ -5,13 +5,12 @@ namespace App\Services\Purchase;
 use App\DTOs\Purchase\PurchaseStoreData;
 use App\DTOs\Purchase\TransactionCreated;
 use App\Jobs\DispatchTransactionToFiscalJob;
-use App\Repositories\Purchase\Contract\TransactionRepositoryInterface;
-use App\Repositories\Purchase\DTO\CreateTransactionInput;
+use App\Repositories\Transaction\Contracts\TransactionRepositoryInterface;
+use App\Repositories\Transaction\DTO\CreateTransactionInput;
 use App\Services\Purchase\Contracts\PurchaseStoreServiceInterface;
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Log;
 
 final class PurchaseStoreService implements PurchaseStoreServiceInterface
 {
@@ -22,7 +21,7 @@ final class PurchaseStoreService implements PurchaseStoreServiceInterface
         private readonly TransactionRepositoryInterface $transactionRepository,
     ) {}
 
-    public function handle(PurchaseStoreData $purchasePayload): TransactionCreated
+    public function storePurchase(PurchaseStoreData $purchasePayload): TransactionCreated
     {
         return $this->database->transaction(function () use ($purchasePayload): TransactionCreated 
         {

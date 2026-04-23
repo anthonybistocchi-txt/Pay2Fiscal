@@ -4,7 +4,7 @@ namespace App\Integrations\Go;
 
 use App\Integrations\Go\Contracts\DispatchTransactionToFiscalServiceInterface;
 use App\Models\Transaction;
-use App\Repositories\Purchase\Contract\TransactionRepositoryInterface;
+use App\Repositories\Transaction\Contracts\TransactionRepositoryInterface;
 use RuntimeException;
 use Throwable;
 use Illuminate\Support\Facades\Http;
@@ -16,9 +16,9 @@ final class DispatchTransactionToFiscalService implements DispatchTransactionToF
         private readonly TransactionRepositoryInterface $transactionRepository,
     ) {}
 
-    public function dispatchByTransactionId(int $transactionPrimaryKey): void
+    public function dispatch(int $transactionPrimaryKey): void
     {
-        $goTimeout      = (int) config('services.fiscal_go.timeout');
+        $goTimeout      = (int)    config('services.fiscal_go.timeout');
         $goBaseUrl      = (string) config('services.fiscal_go.base_url');
         $goDispatchPath = (string) config('services.fiscal_go.dispatch_path');
 
@@ -58,7 +58,7 @@ final class DispatchTransactionToFiscalService implements DispatchTransactionToF
 
         if($goResponse->successful())
         {
-            $this->transactionRepository->updatePaymentStatusSuccess($transactionPrimaryKey);
+            $this->transactionRepository->markAsApproved($transactionPrimaryKey);
         }
         else
         {
@@ -68,7 +68,7 @@ final class DispatchTransactionToFiscalService implements DispatchTransactionToF
                 'failure_reason'   => $goResponse->json('failure_reason'),
             ];
 
-            $this->transactionRepository->updatePaymentStatusFailed($transactionPrimaryKey, $goErrors);
+            $this->transactionRepository->markAsError($transactionPrimaryKey, $goErrors);
 
             Log::warning('Fiscal service rejected transaction dispatch', [
                 'transaction_id'   => $transactionPrimaryKey,

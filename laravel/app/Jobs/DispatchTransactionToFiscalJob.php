@@ -3,7 +3,7 @@
 namespace App\Jobs;
 
 use App\Integrations\Go\Contracts\DispatchTransactionToFiscalServiceInterface;
-use App\Repositories\Purchase\Contract\TransactionRepositoryInterface;
+use App\Repositories\Transaction\Contracts\TransactionRepositoryInterface;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -38,7 +38,7 @@ class DispatchTransactionToFiscalJob implements ShouldBeUnique, ShouldQueue
 
     public function handle(DispatchTransactionToFiscalServiceInterface $dispatchTransactionToFiscal): void
     {
-        $dispatchTransactionToFiscal->dispatchByTransactionId($this->transactionId);
+        $dispatchTransactionToFiscal->dispatch($this->transactionId);
     }
 
     public function failed(?Throwable $exception): void
@@ -76,7 +76,7 @@ class DispatchTransactionToFiscalJob implements ShouldBeUnique, ShouldQueue
                 ? $exceptionCode
                 : null;
 
-            $transactionRepository->updatePaymentStatusFailed(
+            $transactionRepository->markAsError(
                 $this->transactionId,
                 [
                     'failure_reason'   => $exception?->getMessage() ?? 'Job failed without exception detail',

@@ -18,5 +18,5 @@ interface DispatchTransactionToFiscalServiceInterface
      * @throws RequestException When the HTTP response is not successful.
      * @throws ModelNotFoundException When the transaction does not exist.
      */
-    public function dispatchByTransactionId(int $transactionPrimaryKey): void;
+    public function dispatch(int $transactionPrimaryKey): void;
 }

@@ -4,8 +4,8 @@ namespace App\Providers;
 
 use App\Integrations\Go\Contracts\DispatchTransactionToFiscalServiceInterface;
 use App\Integrations\Go\DispatchTransactionToFiscalService;
-use App\Repositories\Purchase\Contract\TransactionRepositoryInterface;
-use App\Repositories\Purchase\TransactionRepository;
+use App\Repositories\Transaction\Contracts\TransactionRepositoryInterface;
+use App\Repositories\Transaction\TransactionRepository;
 use App\Services\Purchase\Contracts\PurchaseStoreServiceInterface;
 use App\Services\Purchase\PurchaseStoreService;
 use Illuminate\Support\ServiceProvider;
