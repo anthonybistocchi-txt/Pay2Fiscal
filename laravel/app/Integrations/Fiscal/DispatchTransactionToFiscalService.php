@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Integrations\Go;
+namespace App\Integrations\Fiscal;
 
-use App\Integrations\Go\Contracts\DispatchTransactionToFiscalServiceInterface;
+use App\Integrations\Fiscal\Contracts\DispatchTransactionToFiscalServiceInterface;
 use App\Models\Transaction;
 use App\Repositories\Transaction\Contracts\TransactionRepositoryInterface;
 use RuntimeException;
@@ -18,33 +18,29 @@ final class DispatchTransactionToFiscalService implements DispatchTransactionToF
 
     public function dispatch(int $transactionPrimaryKey): void
     {
-        $goTimeout      = (int)    config('services.fiscal_go.timeout');
-        $goBaseUrl      = (string) config('services.fiscal_go.base_url');
-        $goDispatchPath = (string) config('services.fiscal_go.dispatch_path');
+        $timeout      = (int)    config('services.fiscal_api.timeout');
+        $baseUrl      = (string) config('services.fiscal_api.base_url');
+        $dispatchPath = (string) config('services.fiscal_api.dispatch_path');
 
-        if ($goBaseUrl === null || $goBaseUrl === '') 
+        if ($baseUrl === null || $baseUrl === '') 
         {
-            Log::debug('Fiscal Go dispatch skipped: services.fiscal_go.base_url is not configured.', [
+            Log::debug('Fiscal dispatch skipped: services.fiscal_api.base_url is not configured.', [
                 'transaction_id' => $transactionPrimaryKey,
                 'error_hour'     => now()->format('Y-m-d H:i:s'),
             ]);
-            
+
             return;
         }
 
         $transaction = $this->transactionRepository->findById($transactionPrimaryKey);
+        $dispatchUrl = rtrim($baseUrl, '/').'/'.ltrim($dispatchPath, '/');
 
-        $dispatchGoUrl = rtrim($goBaseUrl, '/').'/'.ltrim($goDispatchPath, '/');
-
-        try 
-        {
-            $goResponse = Http::timeout($goTimeout)
+        try {
+            $response = Http::timeout($timeout)
                 ->acceptJson()
                 ->asJson()
-                ->post($dispatchGoUrl, $this->buildRequestPayload($transaction));
-        } 
-        catch (Throwable $exception) 
-        {
+                ->post($dispatchUrl, $this->buildRequestPayload($transaction));
+        } catch (Throwable $exception) {
             Log::warning('Failed to reach fiscal service', [
                 'transaction_id'   => $transactionPrimaryKey,
                 'transaction_uuid' => $transaction->transaction_uuid,
@@ -56,33 +52,31 @@ final class DispatchTransactionToFiscalService implements DispatchTransactionToF
             throw $exception;
         }
 
-        if($goResponse->successful())
-        {
+        if ($response->successful()) {
             $this->transactionRepository->markAsApproved($transactionPrimaryKey);
+            return;
         }
-        else
-        {
-            $goErrors = [
-                'go_response_code' => $goResponse->status(),
-                'go_request_id'    => $goResponse->json('request_id'),
-                'failure_reason'   => $goResponse->json('failure_reason'),
-            ];
 
-            $this->transactionRepository->markAsError($transactionPrimaryKey, $goErrors);
+        $errors = [
+            'fiscal_response_code' => $response->status(),
+            'fiscal_request_id'    => $response->json('request_id'),
+            'failure_reason'       => $response->json('failure_reason'),
+        ];
 
-            Log::warning('Fiscal service rejected transaction dispatch', [
-                'transaction_id'   => $transactionPrimaryKey,
-                'transaction_uuid' => $transaction->transaction_uuid,
-                'error_hour'       => now()->format('Y-m-d H:i:s'),
-                'failure_reason'   => $goResponse->json('failure_reason'),
-                'go_response_code' => $goResponse->status(),
-                'go_request_id'    => $goResponse->json('request_id'),
-            ]);
+        $this->transactionRepository->markAsError($transactionPrimaryKey, $errors);
 
-            throw new RuntimeException(
-                'Failed to dispatch transaction to fiscal service: '.($goErrors['failure_reason'] ?? 'unknown reason'),
-            );
-        }
+        Log::warning('Fiscal service rejected transaction dispatch', [
+            'transaction_id'       => $transactionPrimaryKey,
+            'transaction_uuid'     => $transaction->transaction_uuid,
+            'error_hour'           => now()->format('Y-m-d H:i:s'),
+            'failure_reason'       => $response->json('failure_reason'),
+            'fiscal_response_code' => $response->status(),
+            'fiscal_request_id'    => $response->json('request_id'),
+        ]);
+
+        throw new RuntimeException(
+            'Failed to dispatch transaction to fiscal service: '.($errors['failure_reason'] ?? 'unknown reason'),
+        );
     }
 
     /**
@@ -104,3 +98,4 @@ final class DispatchTransactionToFiscalService implements DispatchTransactionToF
         ];
     }
 }
+

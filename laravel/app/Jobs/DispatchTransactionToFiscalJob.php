@@ -2,7 +2,7 @@
 
 namespace App\Jobs;
 
-use App\Integrations\Go\Contracts\DispatchTransactionToFiscalServiceInterface;
+use App\Integrations\Fiscal\Contracts\DispatchTransactionToFiscalServiceInterface;
 use App\Repositories\Transaction\Contracts\TransactionRepositoryInterface;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
@@ -64,8 +64,8 @@ class DispatchTransactionToFiscalJob implements ShouldBeUnique, ShouldQueue
         $alreadyStoredDetailedError = $transaction->payment_status === self::ERROR_PAYMENT_STATUS
             && (
                 $transaction->failure_reason      !== null
-                || $transaction->go_response_code !== null
-                || $transaction->go_request_id    !== null
+                || $transaction->fiscal_response_code !== null
+                || $transaction->fiscal_request_id    !== null
             );
 
         if (!$alreadyStoredDetailedError) 
@@ -80,8 +80,8 @@ class DispatchTransactionToFiscalJob implements ShouldBeUnique, ShouldQueue
                 $this->transactionId,
                 [
                     'failure_reason'   => $exception?->getMessage() ?? 'Job failed without exception detail',
-                    'go_response_code' => $safeHttpLikeCode,
-                    'go_request_id'    => null,
+                    'fiscal_response_code' => $safeHttpLikeCode,
+                    'fiscal_request_id'    => null,
                 ],
             );
         }

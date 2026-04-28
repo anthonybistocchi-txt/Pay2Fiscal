@@ -36,12 +36,12 @@ return [
     ],
 
     /*
-    | Fiscal microservice (Go). When base_url is empty, queued jobs skip the HTTP call (useful locally).
+    | Fiscal microservice (NestJS/Fastify). When base_url is empty, queued jobs skip the HTTP call (useful locally).
     */
-    'fiscal_go' => [
-        'base_url' => env('FISCAL_GO_BASE_URL'),
-        'timeout' => (int) env('FISCAL_GO_TIMEOUT', 30),
-        'dispatch_path' => env('FISCAL_GO_DISPATCH_PATH', 'transactions/dispatch'),
+    'fiscal_api' => [
+        'base_url' => env('FISCAL_API_BASE_URL'),
+        'timeout' => (int) env('FISCAL_API_TIMEOUT', 30),
+        'dispatch_path' => env('FISCAL_API_DISPATCH_PATH', 'transactions/dispatch'),
     ],
 
 ];

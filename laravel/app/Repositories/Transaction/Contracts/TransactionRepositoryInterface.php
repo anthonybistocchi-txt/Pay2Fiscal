@@ -13,7 +13,7 @@ interface TransactionRepositoryInterface
 
     public function markAsApproved(int $transactionId): void;
 
-    public function markAsError(int $transactionId, array $goErrors): void;
+    public function markAsError(int $transactionId, array $fiscalErrors): void;
 
     public function markAsProcessing(int $transactionId): void;
 }

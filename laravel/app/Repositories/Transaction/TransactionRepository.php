@@ -22,42 +22,42 @@ final class TransactionRepository implements TransactionRepositoryInterface
     public function markAsApproved(int $transactionId): void
     {
         Transaction::query()->whereKey($transactionId)->update([
-            'payment_status'   => self::APPROVED_PAYMENT_STATUS,
-            'payment_date'     => now(),
-            'dispatched_at'    => now(),
-            'failed_at'        => null,
-            'go_response_code' => null,
-            'go_request_id'    => null,
-            'failure_reason'   => null,
-            'processed_at'     => now(),
+            'payment_status'       => self::APPROVED_PAYMENT_STATUS,
+            'payment_date'         => now(),
+            'dispatched_at'        => now(),
+            'failed_at'            => null,
+            'fiscal_response_code' => null,
+            'fiscal_request_id'    => null,
+            'failure_reason'       => null,
+            'processed_at'         => now(),
         ]);
     }
 
-    public function markAsError(int $transactionId, array $goErrors): void
+    public function markAsError(int $transactionId, array $fiscalErrors): void
     {
         Transaction::query()->whereKey($transactionId)->update([
-            'payment_status'   => self::ERROR_PAYMENT_STATUS,
-            'payment_date'     => null,
-            'dispatched_at'    => now(),
-            'failed_at'        => now(),
-            'failure_reason'   => $goErrors['failure_reason'],
-            'go_response_code' => $goErrors['go_response_code'],
-            'go_request_id'    => $goErrors['go_request_id'],
-            'processed_at'     => now(),
+            'payment_status'       => self::ERROR_PAYMENT_STATUS,
+            'payment_date'         => null,
+            'dispatched_at'        => now(),
+            'failed_at'            => now(),
+            'failure_reason'       => $fiscalErrors['failure_reason'],
+            'fiscal_response_code' => $fiscalErrors['fiscal_response_code'],
+            'fiscal_request_id'    => $fiscalErrors['fiscal_request_id'],
+            'processed_at'         => now(),
         ]);
     }
 
     public function markAsProcessing(int $transactionId): void
     {
         Transaction::query()->whereKey($transactionId)->update([
-            'payment_status'   => self::PROCESSING_PAYMENT_STATUS,
-            'payment_date'     => null,
-            'dispatched_at'    => now(),
-            'failed_at'        => null,
-            'go_response_code' => null,
-            'go_request_id'    => null,
-            'failure_reason'   => null,
-            'processed_at'     => null,
+            'payment_status'       => self::PROCESSING_PAYMENT_STATUS,
+            'payment_date'         => null,
+            'dispatched_at'        => now(),
+            'failed_at'            => null,
+            'fiscal_response_code' => null,
+            'fiscal_request_id'    => null,
+            'failure_reason'       => null,
+            'processed_at'         => null,
         ]);
     }
 

@@ -23,8 +23,8 @@ class Transaction extends Model
         'processed_at',
         'failed_at',
         'failure_reason',
-        'go_response_code',
-        'go_request_id',
+        'fiscal_response_code',
+        'fiscal_request_id',
     ];
 
     public function user()

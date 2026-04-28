@@ -29,8 +29,8 @@ return new class extends Migration
             $table->dateTime('processed_at')->nullable();
             $table->dateTime('failed_at')->nullable();
             $table->string('failure_reason')->nullable();
-            $table->integer('go_response_code')->nullable();
-            $table->string('go_request_id')->unique()->nullable();
+            $table->integer('fiscal_response_code')->nullable();
+            $table->string('fiscal_request_id')->unique()->nullable();
             $table->timestamps();
         });
     }
