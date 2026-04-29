@@ -9,10 +9,10 @@ use Carbon\Carbon;
  * Immutable response for the transaction created use case.
  */
 final class TransactionCreated
-{
+{   
     public function __construct(
         public readonly string  $idempotencyKey,
-        public readonly string  $transactionId,
+        public readonly string  $transactionUuid,
         public readonly ?Carbon $paymentDate,
         public readonly ?int    $gatewayId,
         public readonly ?string $last4DigitsCardNumber,

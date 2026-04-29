@@ -17,4 +17,9 @@ class Product extends Model
     {
         return $this->hasMany(Transaction::class);
     }
+
+    public function fiscal()
+    {
+        return $this->hasOne(ProductFiscal::class);
+    }
 }

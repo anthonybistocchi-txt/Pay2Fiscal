@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Resources\Purchase;
+namespace App\Http\Resources\Transaction;
 
 use App\DTOs\Purchase\TransactionCreated;
 use DateTimeInterface;
@@ -10,7 +10,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 /**
  * API representation of the TransactionCreated DTO after a successful purchase.
  */
-class TransactionCreatedResource extends JsonResource
+class TransactionResource extends JsonResource
 {
     /**
      * @return array<string, mixed>
@@ -22,7 +22,7 @@ class TransactionCreatedResource extends JsonResource
 
         return [
             'idempotency_key'           => $transactionCreated->idempotencyKey,
-            'transaction_id'            => $transactionCreated->transactionId,
+            'transaction_uuid'          => $transactionCreated->transactionUuid,
             'payment_date'              => $transactionCreated->paymentDate?->format(DateTimeInterface::ATOM),
             'gateway_id'                => $transactionCreated->gatewayId,
             'last_4_digits_card_number' => $transactionCreated->last4DigitsCardNumber,

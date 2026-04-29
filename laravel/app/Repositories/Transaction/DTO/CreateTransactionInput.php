@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Repositories\Purchase\DTO;
+namespace App\Repositories\Transaction\DTO;
 
 /**
  * Payload for persisting a new transaction (repository boundary).
@@ -14,7 +14,7 @@ final class CreateTransactionInput
         public readonly string  $paymentMethod,
         public readonly string  $paymentStatus,
         public readonly string  $idempotencyKey,
-        public readonly string  $transactionId,
+        public readonly string  $transactionUuid,
         public readonly ?int    $gatewayId,
         public readonly ?string $last4DigitsCardNumber,
         public readonly ?string $cardBrand,

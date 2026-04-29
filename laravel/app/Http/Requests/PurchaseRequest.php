@@ -55,7 +55,7 @@ class PurchaseRequest extends FormRequest
             'product_id'                => 'required|integer|exists:products,id',
             'payment_method'            => 'required|string|in:credit_card,debit_card,pix,boleto',
             'payment_amount'            => 'required|integer|min:1',
-            'last_4_digits_card_number' => 'required_if:payment_method,credit_card,debit_card|string|max:4',
+            'last_4_digits_card_number' => 'required_if:payment_method,credit_card,debit_card|digits:4',
             'card_brand'                => 'required_if:payment_method,credit_card,debit_card|string|in:visa,mastercard',
         ];
 
@@ -77,7 +77,7 @@ class PurchaseRequest extends FormRequest
             'payment_amount.integer'                => 'The payment amount must be an integer',
             'payment_amount.min'                    => 'The payment amount must be greater than 0',
             'last_4_digits_card_number.required_if' => 'The last 4 digits card number is required if the payment method is credit card or debit card',
-            'last_4_digits_card_number.max'         => 'The last 4 digits card number must be less than 4 characters',
+            'last_4_digits_card_number.digits'      => 'The last 4 digits card number must be exactly 4 digits',
             'card_brand.required_if'                => 'The card brand is required if the payment method is credit card or debit card',
         ];
     }

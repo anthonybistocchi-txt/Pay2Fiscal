@@ -13,5 +13,5 @@ interface PurchaseStoreServiceInterface
     /**
      * Create a transaction and store it in the database.
      */
-    public function handle(PurchaseStoreData $data): TransactionCreated;
+    public function storePurchase(PurchaseStoreData $data): TransactionCreated;
 }
