@@ -102,6 +102,16 @@ final class DispatchTransactionToFiscalService implements DispatchTransactionToF
             'payment_status'     => $transaction->payment_status,
             'card_brand'         => $transaction->card_brand,
             'last_4_digits_card' => $transaction->last_4_digits_card_number,
+            
+            'transaction_fiscal_data' => $transaction->fiscalData === null ? null : [
+                'origin_id'      => $transaction->fiscalData->origin_id,
+                'ncm'            => $transaction->fiscalData->ncm,
+                'cfop'           => $transaction->fiscalData->cfop,
+                'cest'           => $transaction->fiscalData->cest,
+                'icms_cst_csosn' => $transaction->fiscalData->icms_cst_csosn,
+                'pis_cst'        => $transaction->fiscalData->pis_cst,
+                'cofins_cst'     => $transaction->fiscalData->cofins_cst,
+            ],
             'emitter' => $emitter === null ? null : [
                 'legal_name'  => $emitter->legal_name,
                 'trade_name'  => $emitter->trade_name,

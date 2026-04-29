@@ -5,6 +5,8 @@ namespace App\Services\Purchase;
 use App\DTOs\Purchase\PurchaseStoreData;
 use App\DTOs\Purchase\TransactionCreated;
 use App\Jobs\DispatchTransactionToFiscalJob;
+use App\Models\Product;
+use App\Models\TransactionFiscalData;
 use App\Repositories\Transaction\Contracts\TransactionRepositoryInterface;
 use App\Repositories\Transaction\DTO\CreateTransactionInput;
 use App\Services\Purchase\Contracts\PurchaseStoreServiceInterface;
@@ -25,12 +27,16 @@ final class PurchaseStoreService implements PurchaseStoreServiceInterface
     {
         return $this->database->transaction(function () use ($purchasePayload): TransactionCreated 
         {
+            $product = Product::query()
+                ->with('fiscal')
+                ->findOrFail($purchasePayload->productId);
+
             $totalPaymentAmount = $purchasePayload->paymentAmount * $purchasePayload->quantity;
 
             $persistedTransaction = $this->transactionRepository->create(new CreateTransactionInput(
 
                 userId:                $purchasePayload->user->id,
-                productId:             $purchasePayload->productId,
+                productId:             $product->id,
                 paymentAmount:         $totalPaymentAmount,
                 paymentMethod:         $purchasePayload->paymentMethod,
                 paymentStatus:         self::INITIAL_STATUS,
@@ -43,6 +49,19 @@ final class PurchaseStoreService implements PurchaseStoreServiceInterface
             ));
 
             $persistedTransactionId = $persistedTransaction->id;
+
+            TransactionFiscalData::query()->updateOrCreate(
+                ['transaction_id' => $persistedTransactionId],
+                [
+                    'origin_id'      => $product->fiscal?->origin_id,
+                    'ncm'            => $product->fiscal?->ncm,
+                    'cfop'           => $product->fiscal?->cfop,
+                    'cest'           => $product->fiscal?->cest,
+                    'icms_cst_csosn' => $product->fiscal?->icms_cst_csosn,
+                    'pis_cst'        => $product->fiscal?->pis_cst,
+                    'cofins_cst'     => $product->fiscal?->cofins_cst,
+                ],
+            );
 
             DB::afterCommit(function () use ($persistedTransactionId): void 
             {
