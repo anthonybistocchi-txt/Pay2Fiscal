@@ -3,6 +3,7 @@
 namespace App\Integrations\Fiscal;
 
 use App\Integrations\Fiscal\Contracts\DispatchTransactionToFiscalServiceInterface;
+use App\Models\Emitter;
 use App\Models\Transaction;
 use App\Repositories\Transaction\Contracts\TransactionRepositoryInterface;
 use RuntimeException;
@@ -88,6 +89,8 @@ final class DispatchTransactionToFiscalService implements DispatchTransactionToF
      */
     private function buildRequestPayload(Transaction $transaction): array
     {
+        $emitter = Emitter::query()->first();
+
         return [
             'transaction_uuid'   => $transaction->transaction_uuid,
             'idempotency_key'    => $transaction->idempotency_key,
@@ -99,6 +102,27 @@ final class DispatchTransactionToFiscalService implements DispatchTransactionToF
             'payment_status'     => $transaction->payment_status,
             'card_brand'         => $transaction->card_brand,
             'last_4_digits_card' => $transaction->last_4_digits_card_number,
+            'emitter' => $emitter === null ? null : [
+                'legal_name'  => $emitter->legal_name,
+                'trade_name'  => $emitter->trade_name,
+                'cnpj'        => $emitter->cnpj,
+                'ie'          => $emitter->ie,
+                'im'          => $emitter->im,
+                'tax_regime'  => $emitter->tax_regime,
+                'crt'         => $emitter->crt,
+                'address'     => [
+                    'street'       => $emitter->street,
+                    'number'       => $emitter->number,
+                    'complement'   => $emitter->complement,
+                    'neighborhood' => $emitter->neighborhood,
+                    'city'         => $emitter->city,
+                    'state'        => $emitter->state,
+                    'zip_code'     => $emitter->zip_code,
+                    'country'      => $emitter->country,
+                ],
+                'email'       => $emitter->email,
+                'phone'       => $emitter->phone,
+            ],
         ];
     }
 }
