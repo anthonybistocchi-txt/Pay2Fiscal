@@ -2,6 +2,7 @@
 
 namespace App\Repositories\Transaction;
 
+use App\Models\TransactionFiscalData;
 use App\Models\Transaction;
 use App\Repositories\Transaction\Contracts\TransactionRepositoryInterface;
 use App\Repositories\Transaction\DTO\CreateTransactionInput;
@@ -16,7 +17,9 @@ final class TransactionRepository implements TransactionRepositoryInterface
 
     public function findById(int $transactionId): Transaction
     {
-        return Transaction::query()->findOrFail($transactionId);
+        return Transaction::query()
+            ->with('fiscalData')
+            ->findOrFail($transactionId);
     }
 
     public function markAsApproved(int $transactionId): void
@@ -26,11 +29,18 @@ final class TransactionRepository implements TransactionRepositoryInterface
             'payment_date'         => now(),
             'dispatched_at'        => now(),
             'failed_at'            => null,
-            'fiscal_response_code' => null,
-            'fiscal_request_id'    => null,
             'failure_reason'       => null,
             'processed_at'         => now(),
         ]);
+
+        $this->updateFiscalProcessingResult(
+            $transactionId,
+            [
+                'fiscal_response_code' => null,
+                'fiscal_request_id'    => null,
+                'failure_reason'       => null,
+            ],
+        );
     }
 
     public function markAsError(int $transactionId, array $fiscalErrors): void
@@ -40,11 +50,18 @@ final class TransactionRepository implements TransactionRepositoryInterface
             'payment_date'         => null,
             'dispatched_at'        => now(),
             'failed_at'            => now(),
-            'failure_reason'       => $fiscalErrors['failure_reason'],
-            'fiscal_response_code' => $fiscalErrors['fiscal_response_code'],
-            'fiscal_request_id'    => $fiscalErrors['fiscal_request_id'],
+            'failure_reason'       => null,
             'processed_at'         => now(),
         ]);
+
+        $this->updateFiscalProcessingResult(
+            $transactionId,
+            [
+                'fiscal_response_code' => $fiscalErrors['fiscal_response_code'] ?? null,
+                'fiscal_request_id'    => $fiscalErrors['fiscal_request_id'] ?? null,
+                'failure_reason'       => $fiscalErrors['failure_reason'] ?? null,
+            ],
+        );
     }
 
     public function markAsProcessing(int $transactionId): void
@@ -54,11 +71,18 @@ final class TransactionRepository implements TransactionRepositoryInterface
             'payment_date'         => null,
             'dispatched_at'        => now(),
             'failed_at'            => null,
-            'fiscal_response_code' => null,
-            'fiscal_request_id'    => null,
             'failure_reason'       => null,
             'processed_at'         => null,
         ]);
+
+        $this->updateFiscalProcessingResult(
+            $transactionId,
+            [
+                'fiscal_response_code' => null,
+                'fiscal_request_id'    => null,
+                'failure_reason'       => null,
+            ],
+        );
     }
 
     public function create(CreateTransactionInput $input): Transaction
@@ -77,5 +101,16 @@ final class TransactionRepository implements TransactionRepositoryInterface
             'card_brand'                => $input->cardBrand,
             'quantity'                  => $input->quantity,
         ]);
+    }
+
+    /**
+     * @param array{fiscal_response_code: ?int, fiscal_request_id: ?string, failure_reason: ?string} $result
+     */
+    private function updateFiscalProcessingResult(int $transactionId, array $result): void
+    {
+        TransactionFiscalData::query()->updateOrCreate(
+            ['transaction_id' => $transactionId],
+            $result,
+        );
     }
 }

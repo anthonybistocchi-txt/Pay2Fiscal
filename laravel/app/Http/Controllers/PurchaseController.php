@@ -12,7 +12,7 @@ class PurchaseController extends Controller
 {
     public function __construct(
         private readonly PurchaseStoreServiceInterface $purchaseStoreService,
-    ) {}
+    ){}
 
     public function store(PurchaseRequest $request): JsonResponse
     {

@@ -63,9 +63,10 @@ class DispatchTransactionToFiscalJob implements ShouldBeUnique, ShouldQueue
 
         $alreadyStoredDetailedError = $transaction->payment_status === self::ERROR_PAYMENT_STATUS
             && (
-                $transaction->failure_reason      !== null
-                || $transaction->fiscal_response_code !== null
-                || $transaction->fiscal_request_id    !== null
+                $transaction->failure_reason !== null
+                || $transaction->fiscalData?->fiscal_response_code !== null
+                || $transaction->fiscalData?->fiscal_request_id !== null
+                || $transaction->fiscalData?->failure_reason !== null
             );
 
         if (!$alreadyStoredDetailedError) 

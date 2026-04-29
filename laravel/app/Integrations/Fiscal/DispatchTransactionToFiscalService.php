@@ -35,12 +35,15 @@ final class DispatchTransactionToFiscalService implements DispatchTransactionToF
         $transaction = $this->transactionRepository->findById($transactionPrimaryKey);
         $dispatchUrl = rtrim($baseUrl, '/').'/'.ltrim($dispatchPath, '/');
 
-        try {
+        try 
+        {
             $response = Http::timeout($timeout)
                 ->acceptJson()
                 ->asJson()
                 ->post($dispatchUrl, $this->buildRequestPayload($transaction));
-        } catch (Throwable $exception) {
+        } 
+        catch (Throwable $exception) 
+        {
             Log::warning('Failed to reach fiscal service', [
                 'transaction_id'   => $transactionPrimaryKey,
                 'transaction_uuid' => $transaction->transaction_uuid,
@@ -52,7 +55,8 @@ final class DispatchTransactionToFiscalService implements DispatchTransactionToF
             throw $exception;
         }
 
-        if ($response->successful()) {
+        if ($response->successful()) 
+        {
             $this->transactionRepository->markAsApproved($transactionPrimaryKey);
             return;
         }
