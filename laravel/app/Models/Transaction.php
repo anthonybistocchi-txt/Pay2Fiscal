@@ -23,8 +23,6 @@ class Transaction extends Model
         'processed_at',
         'failed_at',
         'failure_reason',
-        'fiscal_response_code',
-        'fiscal_request_id',
     ];
 
     public function user()
@@ -40,5 +38,10 @@ class Transaction extends Model
     public function gateway()
     {
         return $this->belongsTo(Gateway::class);
+    }
+
+    public function fiscalData()
+    {
+        return $this->hasOne(TransactionFiscalData::class);
     }
 }
