@@ -16,7 +16,7 @@ class ProductSeeder extends Seeder
                 'description' => 'Acesso mensal ao serviço.',
                 'price' => 1990,
                 'fiscal' => [
-                    'origin_id' => 0,
+                    'origin_product' => 1,
                     'ncm' => '99999999',
                     'cest' => null,
                     'cfop' => '5102',
@@ -30,7 +30,7 @@ class ProductSeeder extends Seeder
                 'description' => 'Configuração inicial do ambiente.',
                 'price' => 9900,
                 'fiscal' => [
-                    'origin_id' => 0,
+                    'origin_product' => 1,
                     'ncm' => '99999999',
                     'cest' => null,
                     'cfop' => '5102',

@@ -17,7 +17,7 @@ return new class extends Migration
                 ->constrained('products')
                 ->cascadeOnDelete()
                 ->unique();
-            $table->unsignedSmallInteger('origin_id')->nullable();
+            $table->unsignedSmallInteger('origin_product')->nullable();
             $table->string('ncm', 8)->nullable();
             $table->string('cest', 7)->nullable();
             $table->string('cfop', 4)->nullable();

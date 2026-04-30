@@ -9,8 +9,15 @@ class Gateway extends Model
     protected $fillable = [
         'name',
         'description',
+        'base_url',
+        'dispatch_path',
         'priority',
         'active',
+    ];
+
+    protected $casts = [
+        'active'   => 'boolean',
+        'priority' => 'integer',
     ];
 
     public function transactions()

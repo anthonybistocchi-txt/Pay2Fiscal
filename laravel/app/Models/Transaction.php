@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\PaymentStatus;
 use Illuminate\Database\Eloquent\Model;
 
 class Transaction extends Model
@@ -23,6 +24,16 @@ class Transaction extends Model
         'processed_at',
         'failed_at',
         'failure_reason',
+        'error_code',
+    ];
+
+    protected $casts = [
+        'payment_status' => PaymentStatus::class,
+        'payment_date'   => 'datetime',
+        'dispatched_at'  => 'datetime',
+        'processed_at'   => 'datetime',
+        'failed_at'      => 'datetime',
+        'error_code'     => 'integer',
     ];
 
     public function user()
