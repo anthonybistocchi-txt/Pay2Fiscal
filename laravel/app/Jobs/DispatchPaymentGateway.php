@@ -30,9 +30,19 @@ class DispatchPaymentGateway implements ShouldBeUnique, ShouldQueue
      */
     private const PUBLIC_FAILURE_REASON = 'Payment dispatch failed after multiple attempts. Please retry later or contact support.';
 
-    public int $tries = 3;
+    public int $tries = 5;
 
-    public int $timeout = 120;
+    /**
+     * Wall-clock budget per attempt. Must be greater than the HTTP timeout
+     * inside DispatchPaymentGateways so the worker is not killed mid-request.
+     */
+    public int $timeout = 45;
+
+    /**
+     * Window during which the unique lock is held. Prevents the lock from
+     * becoming permanent if the worker dies before completing the job.
+     */
+    public int $uniqueFor = 600;
 
     public function __construct(
         public readonly Transaction $transaction,
@@ -41,6 +51,17 @@ class DispatchPaymentGateway implements ShouldBeUnique, ShouldQueue
     public function uniqueId(): string
     {
         return 'payment-gateway-dispatch-'.$this->transaction->id;
+    }
+
+    /**
+     * Exponential backoff (in seconds) between retries. Spreads load away
+     * from a flapping gateway and gives transient failures time to clear.
+     *
+     * @return list<int>
+     */
+    public function backoff(): array
+    {
+        return [10, 30, 60, 180, 300];
     }
 
     public function handle(

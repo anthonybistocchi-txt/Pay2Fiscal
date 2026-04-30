@@ -16,7 +16,31 @@ final class TransactionRepository implements TransactionRepositoryInterface
 
     public function create(CreateTransactionInput $input): Transaction
     {
-        return Transaction::create([
+        return Transaction::create($this->mapInputToAttributes($input));
+    }
+
+    /**
+     * @return array{0: Transaction, 1: bool}
+     */
+    public function firstOrCreateByIdempotencyKey(CreateTransactionInput $input): array
+    {
+        $existing = Transaction::query()
+            ->where('idempotency_key', $input->idempotencyKey)
+            ->first();
+
+        if ($existing !== null) {
+            return [$existing, false];
+        }
+
+        return [$this->create($input), true];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function mapInputToAttributes(CreateTransactionInput $input): array
+    {
+        return [
             'user_id'                   => $input->userId,
             'product_id'                => $input->productId,
             'payment_amount'            => $input->paymentAmount,
@@ -29,7 +53,7 @@ final class TransactionRepository implements TransactionRepositoryInterface
             'last_4_digits_card_number' => $input->last4DigitsCardNumber,
             'card_brand'                => $input->cardBrand,
             'quantity'                  => $input->quantity,
-        ]);
+        ];
     }
 
     public function markAsProcessing(Transaction $transaction): void

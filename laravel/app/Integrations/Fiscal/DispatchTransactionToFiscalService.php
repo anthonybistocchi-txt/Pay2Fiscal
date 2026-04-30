@@ -63,7 +63,9 @@ final class DispatchTransactionToFiscalService implements DispatchTransactionToF
         $dispatchUrl = rtrim($baseUrl, '/').'/'.ltrim($dispatchPath, '/');
 
         try {
-            $response = Http::timeout($timeout)
+            $response = Http::connectTimeout(5)
+                ->timeout($timeout)
+                ->withHeaders(['Idempotency-Key' => $transaction->idempotency_key])
                 ->acceptJson()
                 ->asJson()
                 ->post($dispatchUrl, $this->buildRequestPayload($transaction));
@@ -134,13 +136,13 @@ final class DispatchTransactionToFiscalService implements DispatchTransactionToF
             'last_4_digits_card' => $transaction->last_4_digits_card_number,
 
             'transaction_fiscal_data' => $transaction->fiscalData === null ? null : [
-                'origin_id'      => $transaction->fiscalData->origin_id,
-                'ncm'            => $transaction->fiscalData->ncm,
-                'cfop'           => $transaction->fiscalData->cfop,
-                'cest'           => $transaction->fiscalData->cest,
-                'icms_cst_csosn' => $transaction->fiscalData->icms_cst_csosn,
-                'pis_cst'        => $transaction->fiscalData->pis_cst,
-                'cofins_cst'     => $transaction->fiscalData->cofins_cst,
+                'origin_product'      => $transaction->fiscalData->origin_product,
+                'ncm'                 => $transaction->fiscalData->ncm,
+                'cfop'                => $transaction->fiscalData->cfop,
+                'cest'                => $transaction->fiscalData->cest,
+                'icms_cst_csosn'      => $transaction->fiscalData->icms_cst_csosn,
+                'pis_cst'             => $transaction->fiscalData->pis_cst,
+                'cofins_cst'          => $transaction->fiscalData->cofins_cst,
             ],
             'emitter' => $emitter === null ? null : [
                 'legal_name'  => $emitter->legal_name,

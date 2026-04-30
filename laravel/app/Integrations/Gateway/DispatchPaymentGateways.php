@@ -16,7 +16,18 @@ use Throwable;
 
 final class DispatchPaymentGateways implements DispatchPaymentGatewayServiceInterface
 {
-    private const TIMEOUT = 120;
+    /**
+     * Time-to-first-byte budget for the gateway. Anything beyond this is
+     * considered hung and the request is aborted to free the worker. The
+     * job retry loop is responsible for the next attempt.
+     */
+    private const HTTP_TIMEOUT = 20;
+
+    /**
+     * TCP connect budget. A fast fail here lets us move to the next gateway
+     * by priority instead of holding the connection.
+     */
+    private const HTTP_CONNECT_TIMEOUT = 5;
 
     /**
      * User-safe failure reasons stored on the transaction so consumers can
@@ -85,7 +96,9 @@ final class DispatchPaymentGateways implements DispatchPaymentGatewayServiceInte
 
         try 
         {
-            $response = Http::timeout(self::TIMEOUT)
+            $response = Http::connectTimeout(self::HTTP_CONNECT_TIMEOUT)
+                ->timeout(self::HTTP_TIMEOUT)
+                ->withHeaders(['Idempotency-Key' => $transaction->idempotency_key])
                 ->acceptJson()
                 ->asJson()
                 ->post($url, $this->buildRequestPayload($transaction));

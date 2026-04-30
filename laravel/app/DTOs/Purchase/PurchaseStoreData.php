@@ -16,5 +16,6 @@ final class PurchaseStoreData
         public readonly string $paymentMethod,
         public readonly ?string $last4DigitsCardNumber,
         public readonly ?string $cardBrand,
+        public readonly string $idempotencyKey,
     ) {}
 }

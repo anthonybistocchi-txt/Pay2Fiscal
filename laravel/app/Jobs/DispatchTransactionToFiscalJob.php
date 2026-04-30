@@ -30,9 +30,19 @@ class DispatchTransactionToFiscalJob implements ShouldBeUnique, ShouldQueue
      */
     private const PUBLIC_FAILURE_REASON = 'Fiscal dispatch failed after multiple attempts. Please retry later or contact support.';
 
-    public int $tries = 3;
+    public int $tries = 5;
 
-    public int $timeout = 120;
+    /**
+     * Wall-clock budget per attempt. Must exceed the HTTP timeout used by
+     * the fiscal service so the worker is not killed mid-request.
+     */
+    public int $timeout = 45;
+
+    /**
+     * Window during which the unique lock is held. Prevents a permanent
+     * lock when the worker dies before completing the job.
+     */
+    public int $uniqueFor = 600;
 
     public function __construct(
         public readonly Transaction $transaction,
@@ -41,6 +51,17 @@ class DispatchTransactionToFiscalJob implements ShouldBeUnique, ShouldQueue
     public function uniqueId(): string
     {
         return 'fiscal-dispatch-'.$this->transaction->id;
+    }
+
+    /**
+     * Exponential backoff (in seconds) between retries. The fiscal service
+     * is third-party-dependent (city hall) and benefits from longer waits.
+     *
+     * @return list<int>
+     */
+    public function backoff(): array
+    {
+        return [30, 90, 300, 900, 1800];
     }
 
     public function handle(DispatchTransactionToFiscalServiceInterface $dispatchTransactionToFiscal): void
