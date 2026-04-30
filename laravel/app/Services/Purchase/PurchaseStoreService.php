@@ -6,7 +6,6 @@ use App\DTOs\Purchase\PurchaseStoreData;
 use App\DTOs\Purchase\TransactionCreated;
 use App\Enums\PaymentStatus;
 use App\Jobs\DispatchPaymentGateway;
-use App\Jobs\DispatchTransactionToFiscalJob;
 use App\Models\Product;
 use App\Repositories\Transaction\Contracts\TransactionRepositoryInterface;
 use App\Repositories\Transaction\DTO\CreateTransactionInput;
@@ -65,9 +64,9 @@ final class PurchaseStoreService implements PurchaseStoreServiceInterface
                 failureReason:   null,
             ));
 
-            DB::afterCommit(function () use ($persistedTransaction): void {
-                DispatchPaymentGateway::dispatch($persistedTransaction);
-                DispatchTransactionToFiscalJob::dispatch($persistedTransaction);
+            DB::afterCommit(function () use ($persistedTransaction): void 
+            {
+                DispatchPaymentGateway::dispatch($persistedTransaction); // Envia o job para o dispatcher de pagamentos
             });
 
             return new TransactionCreated(
