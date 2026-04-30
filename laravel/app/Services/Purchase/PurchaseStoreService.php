@@ -4,11 +4,14 @@ namespace App\Services\Purchase;
 
 use App\DTOs\Purchase\PurchaseStoreData;
 use App\DTOs\Purchase\TransactionCreated;
+use App\Enums\PaymentStatus;
+use App\Jobs\DispatchPaymentGateway;
 use App\Jobs\DispatchTransactionToFiscalJob;
 use App\Models\Product;
-use App\Models\TransactionFiscalData;
 use App\Repositories\Transaction\Contracts\TransactionRepositoryInterface;
 use App\Repositories\Transaction\DTO\CreateTransactionInput;
+use App\Repositories\TransactionFiscalData\Contacts\TransactionFiscalDataRepositoryInterface;
+use App\Repositories\TransactionFiscalData\DTO\CreateTransactionFiscalDataInput;
 use App\Services\Purchase\Contracts\PurchaseStoreServiceInterface;
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Support\Facades\DB;
@@ -16,11 +19,10 @@ use Illuminate\Support\Str;
 
 final class PurchaseStoreService implements PurchaseStoreServiceInterface
 {
-    private const INITIAL_STATUS = 'PENDING';
-
     public function __construct(
         private readonly ConnectionInterface $database,
         private readonly TransactionRepositoryInterface $transactionRepository,
+        private readonly TransactionFiscalDataRepositoryInterface $transactionFiscalDataRepository,
     ) {}
 
     public function storePurchase(PurchaseStoreData $purchasePayload): TransactionCreated
@@ -31,7 +33,7 @@ final class PurchaseStoreService implements PurchaseStoreServiceInterface
                 ->with('fiscal')
                 ->findOrFail($purchasePayload->productId);
 
-            $totalPaymentAmount = $purchasePayload->paymentAmount * $purchasePayload->quantity;
+            $totalPaymentAmount = $product->price * $purchasePayload->quantity;
 
             $persistedTransaction = $this->transactionRepository->create(new CreateTransactionInput(
 
@@ -39,7 +41,7 @@ final class PurchaseStoreService implements PurchaseStoreServiceInterface
                 productId:             $product->id,
                 paymentAmount:         $totalPaymentAmount,
                 paymentMethod:         $purchasePayload->paymentMethod,
-                paymentStatus:         self::INITIAL_STATUS,
+                paymentStatus:         PaymentStatus::PENDING->value,
                 idempotencyKey:        Str::uuid()->toString(),
                 transactionUuid:       Str::uuid()->toString(),
                 gatewayId:             null,
@@ -50,22 +52,22 @@ final class PurchaseStoreService implements PurchaseStoreServiceInterface
 
             $persistedTransactionId = $persistedTransaction->id;
 
-            TransactionFiscalData::query()->updateOrCreate(
-                ['transaction_id' => $persistedTransactionId],
-                [
-                    'origin_id'      => $product->fiscal?->origin_id,
-                    'ncm'            => $product->fiscal?->ncm,
-                    'cfop'           => $product->fiscal?->cfop,
-                    'cest'           => $product->fiscal?->cest,
-                    'icms_cst_csosn' => $product->fiscal?->icms_cst_csosn,
-                    'pis_cst'        => $product->fiscal?->pis_cst,
-                    'cofins_cst'     => $product->fiscal?->cofins_cst,
-                ],
-            );
+            $this->transactionFiscalDataRepository->create(new CreateTransactionFiscalDataInput(
+                transactionId:   $persistedTransactionId,
+                originProduct:   $product->fiscal?->origin_product,
+                ncm:             $product->fiscal?->ncm,
+                cfop:            $product->fiscal?->cfop,
+                cest:            $product->fiscal?->cest,
+                icmsCstCsosn:    $product->fiscal?->icms_cst_csosn,
+                pisCst:          $product->fiscal?->pis_cst,
+                cofinsCst:       $product->fiscal?->cofins_cst,
+                fiscalRequestId: null,
+                failureReason:   null,
+            ));
 
-            DB::afterCommit(function () use ($persistedTransactionId): void 
-            {
-                DispatchTransactionToFiscalJob::dispatch($persistedTransactionId);
+            DB::afterCommit(function () use ($persistedTransaction): void {
+                DispatchPaymentGateway::dispatch($persistedTransaction);
+                DispatchTransactionToFiscalJob::dispatch($persistedTransaction);
             });
 
             return new TransactionCreated(
@@ -76,7 +78,7 @@ final class PurchaseStoreService implements PurchaseStoreServiceInterface
                 paymentAmount:          $persistedTransaction->payment_amount,
                 paymentMethod:          $persistedTransaction->payment_method,
                 cardBrand:              $persistedTransaction->card_brand,
-                status:                 $persistedTransaction->payment_status,
+                status:                 $persistedTransaction->payment_status->value,
                 quantity:               $persistedTransaction->quantity,
                 user:                   $purchasePayload->user,
                 productId:              $persistedTransaction->product_id,

@@ -13,7 +13,6 @@ final class PurchaseStoreData
         public readonly int $quantity,
         public readonly User $user,
         public readonly int $productId,
-        public readonly int $paymentAmount,
         public readonly string $paymentMethod,
         public readonly ?string $last4DigitsCardNumber,
         public readonly ?string $cardBrand,

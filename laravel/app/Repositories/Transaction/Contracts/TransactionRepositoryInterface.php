@@ -11,9 +11,11 @@ interface TransactionRepositoryInterface
 
     public function findById(int $transactionId): Transaction;
 
-    public function markAsApproved(int $transactionId): void;
+    public function markAsProcessing(Transaction $transaction): void;
 
-    public function markAsError(int $transactionId, array $fiscalErrors): void;
+    public function markAsApproved(Transaction $transaction, ?int $gatewayId = null): void;
 
-    public function markAsProcessing(int $transactionId): void;
+    public function markAsRejected(Transaction $transaction, array $errors): void;
+
+    public function markAsError(Transaction $transaction, array $errors): void;
 }
