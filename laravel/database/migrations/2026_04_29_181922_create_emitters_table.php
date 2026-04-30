@@ -13,17 +13,13 @@ return new class extends Migration
     {
         Schema::create('emitters', function (Blueprint $table) {
             $table->id();
-            $table->string('legal_name');          // Razão social
-            $table->string('trade_name')->nullable(); // Nome fantasia
-            $table->string('cnpj', 14)->unique();  // Apenas dígitos
-            $table->string('ie')->nullable();      // Inscrição estadual
-            $table->string('im')->nullable();      // Inscrição municipal (quando aplicável)
-
-            // Regime/CRT (por enquanto string, pode virar enum depois)
-            $table->string('tax_regime')->nullable(); // ex: SIMPLES, NORMAL
-            $table->string('crt', 1)->nullable();     // ex: 1,2,3 (CRT)
-
-            // Endereço do emitente
+            $table->string('legal_name');
+            $table->string('trade_name')->nullable();
+            $table->string('cnpj', 14)->unique();
+            $table->string('ie')->nullable();
+            $table->string('im')->nullable();
+            $table->enum('tax_regime', ['SIMPLES', 'NORMAL'])->nullable();
+            $table->enum('crt', ['1', '2', '3'])->nullable();
             $table->string('street');
             $table->string('number');
             $table->string('complement')->nullable();
@@ -32,11 +28,8 @@ return new class extends Migration
             $table->string('state', 2);
             $table->string('zip_code', 8);
             $table->string('country', 2)->default('BR');
-
-            // Contato
             $table->string('email')->nullable();
             $table->string('phone')->nullable();
-
             $table->timestamps();
         });
     }
