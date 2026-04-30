@@ -2,11 +2,10 @@
 
 namespace App\Jobs;
 
-use App\Enums\FiscalStatus;
-use App\Integrations\Fiscal\Contracts\DispatchTransactionToFiscalServiceInterface;
+use App\Enums\PaymentStatus;
+use App\Integrations\Gateway\Contracts\DispatchPaymentGatewayServiceInterface;
 use App\Models\Transaction;
 use App\Repositories\Transaction\Contracts\TransactionRepositoryInterface;
-use App\Repositories\TransactionFiscalData\Contacts\TransactionFiscalDataRepositoryInterface;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -15,9 +14,10 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use RuntimeException;
 use Throwable;
 
-class DispatchTransactionToFiscalJob implements ShouldBeUnique, ShouldQueue
+class DispatchPaymentGateway implements ShouldBeUnique, ShouldQueue
 {
     use Dispatchable;
     use InteractsWithQueue;
@@ -25,10 +25,10 @@ class DispatchTransactionToFiscalJob implements ShouldBeUnique, ShouldQueue
     use SerializesModels;
 
     /**
-     * Sanitized failure message stored on the fiscal data when the job
+     * Sanitized failure message stored on the transaction when the job
      * exhausts its retries. Keeps internal details out of API responses.
      */
-    private const PUBLIC_FAILURE_REASON = 'Fiscal dispatch failed after multiple attempts. Please retry later or contact support.';
+    private const PUBLIC_FAILURE_REASON = 'Payment dispatch failed after multiple attempts. Please retry later or contact support.';
 
     public int $tries = 3;
 
@@ -40,23 +40,41 @@ class DispatchTransactionToFiscalJob implements ShouldBeUnique, ShouldQueue
 
     public function uniqueId(): string
     {
-        return 'fiscal-dispatch-'.$this->transaction->id;
+        return 'payment-gateway-dispatch-'.$this->transaction->id;
     }
 
-    public function handle(DispatchTransactionToFiscalServiceInterface $dispatchTransactionToFiscal): void
-    {
-        $dispatchTransactionToFiscal->dispatch($this->transaction);
+    public function handle(
+        DispatchPaymentGatewayServiceInterface $dispatchPaymentGatewayService,
+        TransactionRepositoryInterface $transactionRepository,
+    ): void {
+        $isReadyToDispatch = in_array($this->transaction->payment_status, [
+            PaymentStatus::PENDING,
+            PaymentStatus::PROCESSING,
+        ], true);
+
+        if (!$isReadyToDispatch) {
+            throw new RuntimeException(sprintf(
+                'Transaction %d is not ready to dispatch (current status: %s).',
+                $this->transaction->id,
+                $this->transaction->payment_status->value,
+            ));
+        }
+
+        if ($this->transaction->payment_status === PaymentStatus::PENDING) {
+            $transactionRepository->markAsProcessing($this->transaction);
+        }
+
+        $dispatchPaymentGatewayService->dispatch($this->transaction);
     }
 
     public function failed(?Throwable $exception): void
     {
         $transactionRepository = resolve(TransactionRepositoryInterface::class);
-        $fiscalDataRepository  = resolve(TransactionFiscalDataRepositoryInterface::class);
 
         try {
             $transaction = $transactionRepository->findById($this->transaction->id);
         } catch (ModelNotFoundException $modelNotFoundException) {
-            Log::error('Transaction not found when handling fiscal dispatch job failure', [
+            Log::error('Transaction not found when handling payment gateway job failure', [
                 'transaction_id' => $this->transaction->id,
                 'error_message'  => $modelNotFoundException->getMessage(),
                 'job_attempts'   => $this->attempts(),
@@ -65,20 +83,17 @@ class DispatchTransactionToFiscalJob implements ShouldBeUnique, ShouldQueue
             return;
         }
 
-        $fiscalData = $transaction->fiscalData;
-
-        if ($fiscalData !== null && $fiscalData->fiscal_status !== FiscalStatus::ERROR && $fiscalData->fiscal_status !== FiscalStatus::REJECTED) {
-            $fiscalDataRepository->markAsError($fiscalData, [
+        if ($transaction->payment_status !== PaymentStatus::ERROR) {
+            $transactionRepository->markAsError($transaction, [
                 'error_message' => self::PUBLIC_FAILURE_REASON,
                 'error_code'    => $this->normalizeErrorCode($exception?->getCode()),
             ]);
         }
 
-        Log::error('Failed to dispatch transaction to fiscal service', [
+        Log::error('Failed to dispatch transaction to payment gateway', [
             'transaction_id'   => $transaction->id,
             'transaction_uuid' => $transaction->transaction_uuid,
             'job_attempts'     => $this->attempts(),
-            'fiscal_status'    => $fiscalData?->fiscal_status?->value,
             'error_class'      => $exception ? $exception::class : null,
             'error_message'    => $exception?->getMessage(),
             'error_code'       => $exception?->getCode(),

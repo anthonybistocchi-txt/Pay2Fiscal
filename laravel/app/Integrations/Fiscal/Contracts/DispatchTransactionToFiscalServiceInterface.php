@@ -2,6 +2,7 @@
 
 namespace App\Integrations\Fiscal\Contracts;
 
+use App\Models\Transaction;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Client\RequestException;
 
@@ -18,6 +19,6 @@ interface DispatchTransactionToFiscalServiceInterface
      * @throws RequestException When the HTTP response is not successful.
      * @throws ModelNotFoundException When the transaction does not exist.
      */
-    public function dispatch(int $transactionPrimaryKey): void;
+    public function dispatch(Transaction $transaction): void;
 }
 
