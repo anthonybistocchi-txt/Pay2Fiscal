@@ -46,13 +46,15 @@ class DispatchPaymentGateway implements ShouldBeUnique, ShouldQueue
     public function handle(
         DispatchPaymentGatewayServiceInterface $dispatchPaymentGatewayService,
         TransactionRepositoryInterface $transactionRepository,
-    ): void {
+    ): void 
+    {
         $isReadyToDispatch = in_array($this->transaction->payment_status, [
             PaymentStatus::PENDING,
             PaymentStatus::PROCESSING,
         ], true);
 
-        if (!$isReadyToDispatch) {
+        if (!$isReadyToDispatch) 
+        {
             throw new RuntimeException(sprintf(
                 'Transaction %d is not ready to dispatch (current status: %s).',
                 $this->transaction->id,
@@ -60,7 +62,8 @@ class DispatchPaymentGateway implements ShouldBeUnique, ShouldQueue
             ));
         }
 
-        if ($this->transaction->payment_status === PaymentStatus::PENDING) {
+        if ($this->transaction->payment_status === PaymentStatus::PENDING) 
+        {
             $transactionRepository->markAsProcessing($this->transaction);
         }
 
@@ -71,9 +74,12 @@ class DispatchPaymentGateway implements ShouldBeUnique, ShouldQueue
     {
         $transactionRepository = resolve(TransactionRepositoryInterface::class);
 
-        try {
+        try 
+        {
             $transaction = $transactionRepository->findById($this->transaction->id);
-        } catch (ModelNotFoundException $modelNotFoundException) {
+        } 
+        catch (ModelNotFoundException $modelNotFoundException) 
+        {
             Log::error('Transaction not found when handling payment gateway job failure', [
                 'transaction_id' => $this->transaction->id,
                 'error_message'  => $modelNotFoundException->getMessage(),
@@ -83,7 +89,8 @@ class DispatchPaymentGateway implements ShouldBeUnique, ShouldQueue
             return;
         }
 
-        if ($transaction->payment_status !== PaymentStatus::ERROR) {
+        if ($transaction->payment_status !== PaymentStatus::ERROR) 
+        {
             $transactionRepository->markAsError($transaction, [
                 'error_message' => self::PUBLIC_FAILURE_REASON,
                 'error_code'    => $this->normalizeErrorCode($exception?->getCode()),

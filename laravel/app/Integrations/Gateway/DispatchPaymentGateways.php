@@ -3,6 +3,7 @@
 namespace App\Integrations\Gateway;
 
 use App\Enums\PaymentStatus;
+use App\Events\TransactionApproved;
 use App\Integrations\Gateway\Contracts\DispatchPaymentGatewayServiceInterface;
 use App\Models\Gateway;
 use App\Models\Transaction;
@@ -30,7 +31,8 @@ final class DispatchPaymentGateways implements DispatchPaymentGatewayServiceInte
 
     public function dispatch(Transaction $transaction): void
     {
-        if ($transaction->payment_status !== PaymentStatus::PROCESSING) {
+        if ($transaction->payment_status !== PaymentStatus::PROCESSING) 
+        {
             throw new RuntimeException(sprintf(
                 'Transaction %d is not ready to dispatch (current status: %s).',
                 $transaction->id,
@@ -44,7 +46,8 @@ final class DispatchPaymentGateways implements DispatchPaymentGatewayServiceInte
             ->orderBy('priority', 'asc')
             ->get();
 
-        if ($gateways->isEmpty()) {
+        if ($gateways->isEmpty()) 
+        {
             $this->transactionRepository->markAsError($transaction, [
                 'error_message' => self::REASON_NO_GATEWAYS_AVAILABLE,
             ]);
@@ -57,8 +60,10 @@ final class DispatchPaymentGateways implements DispatchPaymentGatewayServiceInte
             throw new RuntimeException('No active payment gateways available.');
         }
 
-        foreach ($gateways as $gateway) {
-            if ($this->tryDispatchToGateway($transaction, $gateway)) {
+        foreach ($gateways as $gateway) 
+        {
+            if ($this->tryDispatchToGateway($transaction, $gateway)) 
+            {
                 return;
             }
         }
@@ -78,12 +83,15 @@ final class DispatchPaymentGateways implements DispatchPaymentGatewayServiceInte
     {
         $url = $this->buildGatewayUrl($gateway);
 
-        try {
+        try 
+        {
             $response = Http::timeout(self::TIMEOUT)
                 ->acceptJson()
                 ->asJson()
                 ->post($url, $this->buildRequestPayload($transaction));
-        } catch (Throwable $exception) {
+        } 
+        catch (Throwable $exception) 
+        {
             Log::warning('Failed to reach payment gateway', [
                 'transaction_id'   => $transaction->id,
                 'transaction_uuid' => $transaction->transaction_uuid,
@@ -96,35 +104,58 @@ final class DispatchPaymentGateways implements DispatchPaymentGatewayServiceInte
             return false;
         }
 
-        $payload = $response->json() ?? [];
-
-        if ($response->failed() || !isset($payload['idempotency_key'])) {
-            Log::warning('Payment gateway returned an invalid response', [
-                'transaction_id'   => $transaction->id,
-                'transaction_uuid' => $transaction->transaction_uuid,
-                'gateway_id'       => $gateway->id,
-                'gateway_name'     => $gateway->name,
-                'response_status'  => $response->status(),
-                'response_body'    => $response->body(),
+        if ($response->failed()) 
+        {
+            Log::warning('Payment gateway dispatch failed', [
+                'reason'            => 'http_failed',
+                'transaction_id'    => $transaction->id,
+                'transaction_uuid'  => $transaction->transaction_uuid,
+                'gateway_id'        => $gateway->id,
+                'gateway_name'      => $gateway->name,
+                'response_status'   => $response->status(),
+                'response_body'     => $response->body(),
             ]);
 
             return false;
         }
+        
+        $idempotencyKey = $response->json('idempotency_key');
+        
+        if (!is_string($idempotencyKey) || $idempotencyKey === '') 
+        {
+            Log::warning('Payment gateway returned invalid payload', [
+                'reason'            => 'missing_or_invalid_idempotency_key',
+                'transaction_id'    => $transaction->id,
+                'transaction_uuid'  => $transaction->transaction_uuid,
+                'gateway_id'        => $gateway->id,
+                'gateway_name'      => $gateway->name,
+                'response_status'   => $response->status(),
+                'response_body'     => $response->body(),
+                'received_value'    => $idempotencyKey, // pode ser null, array, etc.
+                'received_type'     => gettype($idempotencyKey),
+            ]);
 
-        if ($payload['idempotency_key'] !== $transaction->idempotency_key) {
-            Log::error('Payment gateway returned a mismatching idempotency key', [
+            return false;
+        }
+        
+        if ($idempotencyKey !== $transaction->idempotency_key) 
+        {
+            Log::error('Payment gateway returned mismatching idempotency key', [
+                'reason'                   => 'idempotency_key_mismatch',
                 'transaction_id'           => $transaction->id,
                 'transaction_uuid'         => $transaction->transaction_uuid,
                 'gateway_id'               => $gateway->id,
                 'gateway_name'             => $gateway->name,
                 'expected_idempotency_key' => $transaction->idempotency_key,
-                'received_idempotency_key' => $payload['idempotency_key'],
+                'received_idempotency_key' => $idempotencyKey,
             ]);
 
             return false;
         }
 
         $this->transactionRepository->markAsApproved($transaction, $gateway->id);
+
+        event(new TransactionApproved($transaction)); // Envia o evento para o listener EnqueueFiscalDispatch
 
         Log::info('Payment gateway dispatched successfully', [
             'transaction_id'   => $transaction->id,
