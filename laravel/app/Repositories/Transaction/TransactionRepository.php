@@ -28,7 +28,8 @@ final class TransactionRepository implements TransactionRepositoryInterface
             ->where('idempotency_key', $input->idempotencyKey)
             ->first();
 
-        if ($existing !== null) {
+        if ($existing !== null) 
+        {
             return [$existing, false];
         }
 

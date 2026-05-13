@@ -57,7 +57,8 @@ final class PurchaseStoreService implements PurchaseStoreServiceInterface
                 quantity:              $purchasePayload->quantity,
             ));
 
-            if ($created) {
+            if ($created) 
+            {
                 $this->reserveStock($product->id, $purchasePayload->quantity);
 
                 $this->transactionFiscalDataRepository->create(new CreateTransactionFiscalDataInput(
@@ -109,11 +110,13 @@ final class PurchaseStoreService implements PurchaseStoreServiceInterface
             ->lockForUpdate()
             ->first();
 
-        if ($stock === null) {
+        if ($stock === null) 
+        {
             return;
         }
 
-        if ($stock->quantity < $quantity) {
+        if ($stock->quantity < $quantity) 
+        {
             throw new InsufficientStockException(
                 productId: $productId,
                 requested: $quantity,

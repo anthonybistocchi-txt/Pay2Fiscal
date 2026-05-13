@@ -19,18 +19,18 @@ final class DispatchTransactionToFiscalService implements DispatchTransactionToF
      * can see why the fiscal document was not emitted, without internals.
      */
     private const REASON_FISCAL_REJECTED = 'Fiscal document was rejected by the fiscal service. Please verify the fiscal data.';
-
+    private const TIMEOUT = 30;
     public function __construct(
         private readonly TransactionFiscalDataRepositoryInterface $fiscalDataRepository,
     ) {}
 
     public function dispatch(Transaction $transaction): void
     {
-        $timeout      = (int)    config('services.fiscal_api.timeout');
         $baseUrl      = (string) config('services.fiscal_api.base_url');
         $dispatchPath = (string) config('services.fiscal_api.dispatch_path');
 
-        if ($baseUrl === '') {
+        if ($baseUrl === '') 
+        {
             Log::debug('Fiscal dispatch skipped: services.fiscal_api.base_url is not configured', [
                 'transaction_id' => $transaction->id,
             ]);
@@ -40,7 +40,8 @@ final class DispatchTransactionToFiscalService implements DispatchTransactionToF
 
         $fiscalData = $transaction->fiscalData;
 
-        if ($fiscalData === null) {
+        if ($fiscalData === null) 
+        {
             Log::error('Fiscal dispatch aborted: missing fiscal data for transaction', [
                 'transaction_id'   => $transaction->id,
                 'transaction_uuid' => $transaction->transaction_uuid,
@@ -52,24 +53,32 @@ final class DispatchTransactionToFiscalService implements DispatchTransactionToF
             ));
         }
 
-        if ($fiscalData->fiscal_status !== FiscalStatus::PENDING && $fiscalData->fiscal_status !== FiscalStatus::PROCESSING) {
+        if (
+            $fiscalData->fiscal_status !== FiscalStatus::PENDING 
+            && 
+            $fiscalData->fiscal_status !== FiscalStatus::PROCESSING) 
+        {
             return;
         }
 
-        if ($fiscalData->fiscal_status === FiscalStatus::PENDING) {
+        if ($fiscalData->fiscal_status === FiscalStatus::PENDING) 
+        {
             $this->fiscalDataRepository->markAsProcessing($fiscalData);
         }
 
         $dispatchUrl = rtrim($baseUrl, '/').'/'.ltrim($dispatchPath, '/');
 
-        try {
-            $response = Http::connectTimeout(5)
-                ->timeout($timeout)
+        try 
+        {
+            $response = Http::connectTimeout(self::TIMEOUT)
+                ->timeout(self::TIMEOUT)
                 ->withHeaders(['Idempotency-Key' => $transaction->idempotency_key])
                 ->acceptJson()
                 ->asJson()
                 ->post($dispatchUrl, $this->buildRequestPayload($transaction));
-        } catch (Throwable $exception) {
+        } 
+        catch (Throwable $exception) 
+        {
             Log::warning('Failed to reach fiscal service', [
                 'transaction_id'   => $transaction->id,
                 'transaction_uuid' => $transaction->transaction_uuid,
@@ -80,7 +89,8 @@ final class DispatchTransactionToFiscalService implements DispatchTransactionToF
             throw $exception;
         }
 
-        if ($response->successful()) {
+        if ($response->successful()) 
+        {
             $this->fiscalDataRepository->markAsEmitted(
                 $fiscalData,
                 $response->json('request_id'),
