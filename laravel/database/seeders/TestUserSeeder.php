@@ -11,19 +11,19 @@ class TestUserSeeder extends Seeder
     public function run(): void
     {
         User::query()->updateOrCreate(
-            ['email' => 'test@example.com'],
+            ['email' => 'anthony@abcode.com.br'],
             [
-                'name' => 'Test User',
-                'password' => Hash::make('password'),
+                'name' => 'Anthony',
+                'password' => Hash::make('12345678'),
                 'cpf' => '12345678901',
                 'cnpj' => null,
-                'street' => 'Rua Itatiaia',
-                'number' => '123',
-                'complement' => null,
-                'neighborhood' => 'Centro',
+                'street' => 'Av. Presidente Vargas',
+                'number' => '1000',
+                'complement' => 'Sala 101',
+                'neighborhood' => 'Jardim Sumaré',
                 'city' => 'Ribeirão Preto',
                 'state' => 'SP',
-                'zip_code' => '14010000',
+                'zip_code' => '14020010',
                 'country' => 'BR',
             ],
         );

@@ -18,6 +18,7 @@ use App\Repositories\TransactionFiscalData\DTO\CreateTransactionFiscalDataInput;
 use App\Services\Purchase\Contracts\PurchaseStoreServiceInterface;
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 final class PurchaseStoreService implements PurchaseStoreServiceInterface
@@ -36,12 +37,23 @@ final class PurchaseStoreService implements PurchaseStoreServiceInterface
     public function storePurchase(PurchaseStoreData $purchasePayload): TransactionCreated
     {
         return $this->database->transaction(function () use ($purchasePayload): TransactionCreated {
+            Log::info('[Fluxo Pagamento] Início da transação de banco (compra)', [
+                'transaction_phase' => 'db_transaction',
+            ]);
+
             $product = Product::query()
                 ->with('fiscal')
                 ->lockForUpdate()
                 ->findOrFail($purchasePayload->productId);
 
             $totalPaymentAmount = $product->price * $purchasePayload->quantity;
+
+            Log::info('[Fluxo Pagamento] Produto bloqueado e valor total calculado', [
+                'transaction_phase'   => 'product_locked',
+                'unit_price'          => $product->price,
+                'quantity'            => $purchasePayload->quantity,
+                'total_payment_amount' => $totalPaymentAmount,
+            ]);
 
             [$persistedTransaction, $created] = $this->transactionRepository->firstOrCreateByIdempotencyKey(new CreateTransactionInput(
                 userId:                $purchasePayload->user->id,
@@ -57,9 +69,22 @@ final class PurchaseStoreService implements PurchaseStoreServiceInterface
                 quantity:              $purchasePayload->quantity,
             ));
 
+            Log::info('[Fluxo Pagamento] Transação financeira obtida/criada por idempotência', [
+                'transaction_phase'  => 'transaction_row',
+                'transaction_id'     => $persistedTransaction->id,
+                'transaction_uuid'   => $persistedTransaction->transaction_uuid,
+                'created_new_row'    => $created,
+                'current_status'     => $persistedTransaction->payment_status->value,
+            ]);
+
             if ($created) 
             {
                 $this->reserveStock($product->id, $purchasePayload->quantity);
+
+                Log::info('[Fluxo Pagamento] Estoque reservado (se existir registro de estoque)', [
+                    'transaction_phase' => 'stock_reserved',
+                    'product_id'        => $product->id,
+                ]);
 
                 $this->transactionFiscalDataRepository->create(new CreateTransactionFiscalDataInput(
                     transactionId:   $persistedTransaction->id,
@@ -74,10 +99,30 @@ final class PurchaseStoreService implements PurchaseStoreServiceInterface
                     failureReason:   null,
                 ));
 
+                Log::info('[Fluxo Pagamento] Dados fiscais da transação gravados', [
+                    'transaction_phase' => 'fiscal_data_created',
+                    'transaction_id'    => $persistedTransaction->id,
+                ]);
+
                 DB::afterCommit(function () use ($persistedTransaction): void {
+                    Log::info('[Fluxo Pagamento] Agendando job de envio ao gateway após commit', [
+                        'transaction_phase' => 'queue_after_commit',
+                        'transaction_id'    => $persistedTransaction->id,
+                    ]);
                     DispatchPaymentGateway::dispatch($persistedTransaction);
                 });
+            } else {
+                Log::info('[Fluxo Pagamento] Idempotência: reutilizando transação existente (sem novo job)', [
+                    'transaction_phase' => 'idempotent_replay',
+                    'transaction_id'    => $persistedTransaction->id,
+                ]);
             }
+
+            Log::info('[Fluxo Pagamento] Unidade de trabalho de banco concluída; montando resposta da compra', [
+                'transaction_phase' => 'db_transaction_done',
+                'transaction_id'    => $persistedTransaction->id,
+                'payment_status'    => $persistedTransaction->payment_status->value,
+            ]);
 
             return new TransactionCreated(
                 idempotencyKey:         $persistedTransaction->idempotency_key,

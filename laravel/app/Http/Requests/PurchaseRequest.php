@@ -6,6 +6,7 @@ use App\DTOs\Purchase\PurchaseStoreData;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class PurchaseRequest extends FormRequest
 {
@@ -46,7 +47,7 @@ class PurchaseRequest extends FormRequest
             ? strtoupper($validated['card_brand'])
             : null;
 
-        return new PurchaseStoreData(
+        $dto = new PurchaseStoreData(
             quantity:              $validated['quantity'],
             user:                  Auth::user(),
             productId:             $validated['product_id'],
@@ -55,6 +56,18 @@ class PurchaseRequest extends FormRequest
             cardBrand:             $normalizedCardBrand,
             idempotencyKey:        $validated['idempotency_key'],
         );
+
+        Log::info('[Fluxo Pagamento] Payload validado convertido para DTO', [
+            'payment_flow'      => true,
+            'idempotency_key'   => $dto->idempotencyKey,
+            'user_id'           => $dto->user->id,
+            'product_id'        => $dto->productId,
+            'quantity'          => $dto->quantity,
+            'payment_method'    => $dto->paymentMethod,
+            'transaction_phase' => 'request_validated',
+        ]);
+
+        return $dto;
     }
 
     /**

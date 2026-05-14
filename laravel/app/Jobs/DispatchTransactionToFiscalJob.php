@@ -66,7 +66,21 @@ class DispatchTransactionToFiscalJob implements ShouldBeUnique, ShouldQueue
 
     public function handle(DispatchTransactionToFiscalServiceInterface $dispatchTransactionToFiscal): void
     {
+        Log::withContext([
+            'payment_flow'       => true,
+            'transaction_id'     => $this->transaction->id,
+            'transaction_uuid'   => $this->transaction->transaction_uuid,
+            'idempotency_key'    => $this->transaction->idempotency_key,
+            'transaction_phase'  => 'fiscal_job',
+        ]);
+
+        Log::info('[Fluxo Pagamento] Job DispatchTransactionToFiscalJob iniciado', [
+            'job_attempt' => $this->attempts(),
+        ]);
+
         $dispatchTransactionToFiscal->dispatch($this->transaction);
+
+        Log::info('[Fluxo Pagamento] Job DispatchTransactionToFiscalJob concluiu handle sem exceção');
     }
 
     public function failed(?Throwable $exception): void

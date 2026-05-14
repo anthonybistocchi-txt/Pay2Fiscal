@@ -69,6 +69,19 @@ class DispatchPaymentGateway implements ShouldBeUnique, ShouldQueue
         TransactionRepositoryInterface $transactionRepository,
     ): void 
     {
+        Log::withContext([
+            'payment_flow'       => true,
+            'transaction_id'     => $this->transaction->id,
+            'transaction_uuid'   => $this->transaction->transaction_uuid,
+            'idempotency_key'    => $this->transaction->idempotency_key,
+            'transaction_phase'  => 'payment_gateway_job',
+        ]);
+
+        Log::info('[Fluxo Pagamento] Job DispatchPaymentGateway iniciado', [
+            'payment_status' => $this->transaction->payment_status->value,
+            'job_attempt'    => $this->attempts(),
+        ]);
+
         $isReadyToDispatch = in_array($this->transaction->payment_status, [
             PaymentStatus::PENDING,
             PaymentStatus::PROCESSING,
@@ -76,6 +89,10 @@ class DispatchPaymentGateway implements ShouldBeUnique, ShouldQueue
 
         if (!$isReadyToDispatch) 
         {
+            Log::warning('[Fluxo Pagamento] Job abortado: transação não está PENDING nem PROCESSING', [
+                'payment_status' => $this->transaction->payment_status->value,
+            ]);
+
             throw new RuntimeException(sprintf(
                 'Transaction %d is not ready to dispatch (current status: %s).',
                 $this->transaction->id,
@@ -85,10 +102,14 @@ class DispatchPaymentGateway implements ShouldBeUnique, ShouldQueue
 
         if ($this->transaction->payment_status === PaymentStatus::PENDING) 
         {
+            Log::info('[Fluxo Pagamento] Marcando transação como PROCESSING antes do gateway');
             $transactionRepository->markAsProcessing($this->transaction);
         }
 
+        Log::info('[Fluxo Pagamento] Chamando integração de gateways (HTTP)');
         $dispatchPaymentGatewayService->dispatch($this->transaction);
+
+        Log::info('[Fluxo Pagamento] Job DispatchPaymentGateway concluiu handle sem exceção');
     }
 
     public function failed(?Throwable $exception): void

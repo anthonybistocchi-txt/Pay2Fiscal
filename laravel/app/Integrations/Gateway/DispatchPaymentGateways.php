@@ -42,8 +42,22 @@ final class DispatchPaymentGateways implements DispatchPaymentGatewayServiceInte
 
     public function dispatch(Transaction $transaction): void
     {
+        Log::info('[Fluxo Pagamento] DispatchPaymentGateways::dispatch iniciado', [
+            'transaction_phase' => 'gateway_integration',
+            'transaction_id'    => $transaction->id,
+            'transaction_uuid'  => $transaction->transaction_uuid,
+            'idempotency_key'   => $transaction->idempotency_key,
+            'payment_status'    => $transaction->payment_status->value,
+            'payment_amount'    => $transaction->payment_amount,
+            'payment_method'    => $transaction->payment_method,
+        ]);
+
         if ($transaction->payment_status !== PaymentStatus::PROCESSING) 
         {
+            Log::warning('[Fluxo Pagamento] Integração gateway abortada: status diferente de PROCESSING', [
+                'payment_status' => $transaction->payment_status->value,
+            ]);
+
             throw new RuntimeException(sprintf(
                 'Transaction %d is not ready to dispatch (current status: %s).',
                 $transaction->id,
@@ -56,6 +70,11 @@ final class DispatchPaymentGateways implements DispatchPaymentGatewayServiceInte
             ->where('active', true)
             ->orderBy('priority', 'asc')
             ->get();
+
+        Log::info('[Fluxo Pagamento] Gateways ativos carregados por prioridade', [
+            'gateway_count' => $gateways->count(),
+            'gateway_order' => $gateways->pluck('name')->all(),
+        ]);
 
         if ($gateways->isEmpty()) 
         {
@@ -73,8 +92,18 @@ final class DispatchPaymentGateways implements DispatchPaymentGatewayServiceInte
 
         foreach ($gateways as $gateway) 
         {
+            Log::info('[Fluxo Pagamento] Tentando gateway na ordem de prioridade', [
+                'gateway_id'   => $gateway->id,
+                'gateway_name' => $gateway->name,
+            ]);
+
             if ($this->tryDispatchToGateway($transaction, $gateway)) 
             {
+                Log::info('[Fluxo Pagamento] Fluxo de gateway encerrado com sucesso para este gateway', [
+                    'gateway_id'   => $gateway->id,
+                    'gateway_name' => $gateway->name,
+                ]);
+
                 return;
             }
         }
@@ -94,6 +123,11 @@ final class DispatchPaymentGateways implements DispatchPaymentGatewayServiceInte
     {
         $url = $this->buildGatewayUrl($gateway);
 
+        Log::info('[Fluxo Pagamento] POST para gateway de pagamento', [
+            'gateway_id'   => $gateway->id,
+            'dispatch_url' => $url,
+        ]);
+
         try 
         {
             $response = Http::connectTimeout(self::HTTP_CONNECT_TIMEOUT)
@@ -102,6 +136,12 @@ final class DispatchPaymentGateways implements DispatchPaymentGatewayServiceInte
                 ->acceptJson()
                 ->asJson()
                 ->post($url, $this->buildRequestPayload($transaction));
+
+            Log::info('[Fluxo Pagamento] Resposta HTTP recebida do gateway', [
+                'gateway_id'      => $gateway->id,
+                'response_status' => $response->status(),
+                'successful'      => $response->successful(),
+            ]);
         } 
         catch (Throwable $exception) 
         {
@@ -167,6 +207,11 @@ final class DispatchPaymentGateways implements DispatchPaymentGatewayServiceInte
         }
 
         $this->transactionRepository->markAsApproved($transaction, $gateway->id);
+
+        Log::info('[Fluxo Pagamento] Transação marcada como APPROVED; disparando TransactionApproved para fiscal', [
+            'gateway_id'   => $gateway->id,
+            'gateway_name' => $gateway->name,
+        ]);
 
         event(new TransactionApproved($transaction)); // Envia o evento para o listener EnqueueFiscalDispatch
 

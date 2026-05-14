@@ -26,12 +26,20 @@ final class DispatchTransactionToFiscalService implements DispatchTransactionToF
 
     public function dispatch(Transaction $transaction): void
     {
+        Log::info('[Fluxo Pagamento] DispatchTransactionToFiscalService::dispatch iniciado', [
+            'payment_flow'      => true,
+            'transaction_phase' => 'fiscal_integration',
+            'transaction_id'    => $transaction->id,
+            'transaction_uuid'  => $transaction->transaction_uuid,
+            'idempotency_key'   => $transaction->idempotency_key,
+        ]);
+
         $baseUrl      = (string) config('services.fiscal_api.base_url');
         $dispatchPath = (string) config('services.fiscal_api.dispatch_path');
 
         if ($baseUrl === '') 
         {
-            Log::debug('Fiscal dispatch skipped: services.fiscal_api.base_url is not configured', [
+            Log::info('[Fluxo Pagamento] Envio fiscal ignorado: base_url não configurada', [
                 'transaction_id' => $transaction->id,
             ]);
 
@@ -58,15 +66,24 @@ final class DispatchTransactionToFiscalService implements DispatchTransactionToF
             && 
             $fiscalData->fiscal_status !== FiscalStatus::PROCESSING) 
         {
+            Log::info('[Fluxo Pagamento] Envio fiscal não necessário: status fiscal já finalizado ou em outro estado', [
+                'fiscal_status' => $fiscalData->fiscal_status->value,
+            ]);
+
             return;
         }
 
         if ($fiscalData->fiscal_status === FiscalStatus::PENDING) 
         {
+            Log::info('[Fluxo Pagamento] Marcando dados fiscais como PROCESSING');
             $this->fiscalDataRepository->markAsProcessing($fiscalData);
         }
 
         $dispatchUrl = rtrim($baseUrl, '/').'/'.ltrim($dispatchPath, '/');
+
+        Log::info('[Fluxo Pagamento] POST para API fiscal', [
+            'dispatch_url' => $dispatchUrl,
+        ]);
 
         try 
         {
