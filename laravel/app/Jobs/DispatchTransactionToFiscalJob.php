@@ -88,9 +88,13 @@ class DispatchTransactionToFiscalJob implements ShouldBeUnique, ShouldQueue
         $transactionRepository = resolve(TransactionRepositoryInterface::class);
         $fiscalDataRepository  = resolve(TransactionFiscalDataRepositoryInterface::class);
 
-        try {
+        try 
+        {
             $transaction = $transactionRepository->findById($this->transaction->id);
-        } catch (ModelNotFoundException $modelNotFoundException) {
+
+        } 
+        catch (ModelNotFoundException $modelNotFoundException) 
+        {
             Log::error('Transaction not found when handling fiscal dispatch job failure', [
                 'transaction_id' => $this->transaction->id,
                 'error_message'  => $modelNotFoundException->getMessage(),
@@ -107,6 +111,7 @@ class DispatchTransactionToFiscalJob implements ShouldBeUnique, ShouldQueue
                 'error_message' => self::PUBLIC_FAILURE_REASON,
                 'error_code'    => $this->normalizeErrorCode($exception?->getCode()),
             ]);
+            
         }
 
         Log::error('Failed to dispatch transaction to fiscal service', [
