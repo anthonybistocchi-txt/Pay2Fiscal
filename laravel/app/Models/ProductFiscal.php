@@ -10,7 +10,7 @@ class ProductFiscal extends Model
 
     protected $fillable = [
         'product_id',
-        'origin_id',
+        'origin_product',
         'ncm',
         'cest',
         'cfop',

@@ -17,21 +17,19 @@ return new class extends Migration
                 ->constrained('transactions')
                 ->cascadeOnDelete()
                 ->unique();
-
-            // Snapshot fiscal do item (1 item por transação por enquanto).
-            $table->unsignedSmallInteger('origin_id')->nullable(); // Origem da mercadoria (0..8)
-            $table->string('ncm', 8)->nullable(); // NCM (8 dígitos, pode ter 0 à esquerda)
-            $table->string('cfop', 4)->nullable(); // CFOP (4 dígitos)
-            $table->string('cest', 7)->nullable(); // CEST (7 dígitos, pode ter 0 à esquerda)
-
-            $table->string('icms_cst_csosn', 4)->nullable(); // CST/CSOSN
-            $table->string('pis_cst', 2)->nullable(); // PIS CST
-            $table->string('cofins_cst', 2)->nullable(); // COFINS CST
-
-            // Resultado/retorno do processamento fiscal (emissão/tributação).
-            $table->unsignedSmallInteger('fiscal_response_code')->nullable();
+            $table->enum('fiscal_status', ['PENDING', 'PROCESSING', 'EMITTED', 'REJECTED', 'ERROR', 'CANCELED'])
+                ->default('PENDING');
+            $table->unsignedSmallInteger('origin_product')->nullable();
+            $table->string('ncm', 8)->nullable();
+            $table->string('cfop', 4)->nullable();
+            $table->string('cest', 7)->nullable();
+            $table->string('icms_cst_csosn', 4)->nullable();
+            $table->string('pis_cst', 2)->nullable();
+            $table->string('cofins_cst', 2)->nullable();
             $table->string('fiscal_request_id')->unique()->nullable();
             $table->text('failure_reason')->nullable();
+            $table->unsignedSmallInteger('error_code')->nullable();
+            $table->dateTime('emitted_at')->nullable();
             $table->timestamps();
         });
     }

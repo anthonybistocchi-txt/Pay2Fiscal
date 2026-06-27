@@ -15,6 +15,8 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('description');
+            $table->string('base_url');
+            $table->string('dispatch_path');
             $table->integer('priority');
             $table->integer('active')->default(1);
             $table->timestamps();

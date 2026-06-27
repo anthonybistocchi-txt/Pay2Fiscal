@@ -23,5 +23,6 @@ final class TransactionCreated
         public readonly int     $quantity,
         public readonly User    $user,
         public readonly int     $productId,
+        public readonly string  $fiscalStatus,
     ) {}
 }

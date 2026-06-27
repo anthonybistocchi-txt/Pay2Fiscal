@@ -2,8 +2,11 @@
 
 namespace App\Jobs;
 
+use App\Enums\FiscalStatus;
 use App\Integrations\Fiscal\Contracts\DispatchTransactionToFiscalServiceInterface;
+use App\Models\Transaction;
 use App\Repositories\Transaction\Contracts\TransactionRepositoryInterface;
+use App\Repositories\TransactionFiscalData\Contacts\TransactionFiscalDataRepositoryInterface;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -21,39 +24,79 @@ class DispatchTransactionToFiscalJob implements ShouldBeUnique, ShouldQueue
     use Queueable;
     use SerializesModels;
 
-    private const ERROR_PAYMENT_STATUS = 'ERROR';
+    /**
+     * Sanitized failure message stored on the fiscal data when the job
+     * exhausts its retries. Keeps internal details out of API responses.
+     */
+    private const PUBLIC_FAILURE_REASON = 'Fiscal dispatch failed after multiple attempts. Please retry later or contact support.';
 
-    public int $tries = 3;
+    public int $tries = 5;
 
-    public int $timeout = 120;
+    /**
+     * Wall-clock budget per attempt. Must exceed the HTTP timeout used by
+     * the fiscal service so the worker is not killed mid-request.
+     */
+    public int $timeout = 45;
+
+    /**
+     * Window during which the unique lock is held. Prevents a permanent
+     * lock when the worker dies before completing the job.
+     */
+    public int $uniqueFor = 600;
 
     public function __construct(
-        public readonly int $transactionId,
+        public readonly Transaction $transaction,
     ) {}
 
     public function uniqueId(): string
     {
-        return 'fiscal-dispatch-'.$this->transactionId;
+        return 'fiscal-dispatch-'.$this->transaction->id;
+    }
+
+    /**
+     * Exponential backoff (in seconds) between retries. The fiscal service
+     * is third-party-dependent (city hall) and benefits from longer waits.
+     *
+     * @return list<int>
+     */
+    public function backoff(): array
+    {
+        return [30, 90, 300, 900, 1800];
     }
 
     public function handle(DispatchTransactionToFiscalServiceInterface $dispatchTransactionToFiscal): void
     {
-        $dispatchTransactionToFiscal->dispatch($this->transactionId);
+        Log::withContext([
+            'payment_flow'       => true,
+            'transaction_id'     => $this->transaction->id,
+            'transaction_uuid'   => $this->transaction->transaction_uuid,
+            'idempotency_key'    => $this->transaction->idempotency_key,
+            'transaction_phase'  => 'fiscal_job',
+        ]);
+
+        Log::info('[Fluxo Pagamento] Job DispatchTransactionToFiscalJob iniciado', [
+            'job_attempt' => $this->attempts(),
+        ]);
+
+        $dispatchTransactionToFiscal->dispatch($this->transaction);
+
+        Log::info('[Fluxo Pagamento] Job DispatchTransactionToFiscalJob concluiu handle sem exceção');
     }
 
     public function failed(?Throwable $exception): void
     {
         $transactionRepository = resolve(TransactionRepositoryInterface::class);
+        $fiscalDataRepository  = resolve(TransactionFiscalDataRepositoryInterface::class);
 
         try 
         {
-            $transaction = $transactionRepository->findById($this->transactionId);
+            $transaction = $transactionRepository->findById($this->transaction->id);
+
         } 
         catch (ModelNotFoundException $modelNotFoundException) 
         {
-            Log::error('Failed to update transaction after dispatch job failure: transaction not found', [
-                'transaction_id' => $this->transactionId,
-                'error_hour'     => now()->format('Y-m-d H:i:s'),
+            Log::error('Transaction not found when handling fiscal dispatch job failure', [
+                'transaction_id' => $this->transaction->id,
                 'error_message'  => $modelNotFoundException->getMessage(),
                 'job_attempts'   => $this->attempts(),
             ]);
@@ -61,44 +104,34 @@ class DispatchTransactionToFiscalJob implements ShouldBeUnique, ShouldQueue
             return;
         }
 
-        $alreadyStoredDetailedError = $transaction->payment_status === self::ERROR_PAYMENT_STATUS
-            && (
-                $transaction->failure_reason !== null
-                || $transaction->fiscalData?->fiscal_response_code !== null
-                || $transaction->fiscalData?->fiscal_request_id !== null
-                || $transaction->fiscalData?->failure_reason !== null
-            );
+        $fiscalData = $transaction->fiscalData;
 
-        if (!$alreadyStoredDetailedError) 
-        {
-            $exceptionCode = $exception?->getCode();
+        if ($fiscalData !== null && $fiscalData->fiscal_status !== FiscalStatus::ERROR && $fiscalData->fiscal_status !== FiscalStatus::REJECTED) {
+            $fiscalDataRepository->markAsError($fiscalData, [
+                'error_message' => self::PUBLIC_FAILURE_REASON,
+                'error_code'    => $this->normalizeErrorCode($exception?->getCode()),
+            ]);
             
-            $safeHttpLikeCode = is_int($exceptionCode) && $exceptionCode >= 100 && $exceptionCode <= 599
-                ? $exceptionCode
-                : null;
-
-            $transactionRepository->markAsError(
-                $this->transactionId,
-                [
-                    'failure_reason'   => $exception?->getMessage() ?? 'Job failed without exception detail',
-                    'fiscal_response_code' => $safeHttpLikeCode,
-                    'fiscal_request_id'    => null,
-                ],
-            );
         }
 
         Log::error('Failed to dispatch transaction to fiscal service', [
-            'transaction_id'                => $this->transactionId,
-            'transaction_uuid'              => $transaction->transaction_uuid,
-            'error_hour'                    => now()->format('Y-m-d H:i:s'),
-            'job_attempts'                  => $this->attempts(),
-            'already_stored_detailed_error' => $alreadyStoredDetailedError,
-            'exception'                     => $exception,
-            'error_message'                 => $exception?->getMessage(),
-            'error_trace'                   => $exception?->getTraceAsString(),
-            'error_file'                    => $exception?->getFile(),
-            'error_line'                    => $exception?->getLine(),
-            'error_code'                    => $exception?->getCode(),
+            'transaction_id'   => $transaction->id,
+            'transaction_uuid' => $transaction->transaction_uuid,
+            'job_attempts'     => $this->attempts(),
+            'fiscal_status'    => $fiscalData?->fiscal_status?->value,
+            'error_class'      => $exception ? $exception::class : null,
+            'error_message'    => $exception?->getMessage(),
+            'error_code'       => $exception?->getCode(),
+            'error_file'       => $exception?->getFile(),
+            'error_line'       => $exception?->getLine(),
         ]);
+    }
+
+    /**
+     * Persist only HTTP-like codes; otherwise drop them to avoid storing internal signals (e.g. 0).
+     */
+    private function normalizeErrorCode(mixed $code): ?int
+    {
+        return is_int($code) && $code >= 100 && $code <= 599 ? $code : null;
     }
 }

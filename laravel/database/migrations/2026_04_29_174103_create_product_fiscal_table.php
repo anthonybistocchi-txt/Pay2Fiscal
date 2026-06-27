@@ -17,16 +17,13 @@ return new class extends Migration
                 ->constrained('products')
                 ->cascadeOnDelete()
                 ->unique();
-
-            // Cadastro fiscal do produto (fonte dos códigos).
-            $table->unsignedSmallInteger('origin_id')->nullable(); // Origem da mercadoria (0..8)
-            $table->string('ncm', 8)->nullable(); // NCM (8 dígitos, pode ter 0 à esquerda)
-            $table->string('cest', 7)->nullable(); // CEST (7 dígitos, pode ter 0 à esquerda)
-            $table->string('cfop', 4)->nullable(); // CFOP default (pode variar por operação/UF)
-
-            $table->string('icms_cst_csosn', 4)->nullable(); // CST/CSOSN
-            $table->string('pis_cst', 2)->nullable(); // PIS CST
-            $table->string('cofins_cst', 2)->nullable(); // COFINS CST
+            $table->unsignedSmallInteger('origin_product')->nullable();
+            $table->string('ncm', 8)->nullable();
+            $table->string('cest', 7)->nullable();
+            $table->string('cfop', 4)->nullable();
+            $table->string('icms_cst_csosn', 4)->nullable();
+            $table->string('pis_cst', 2)->nullable();
+            $table->string('cofins_cst', 2)->nullable();
 
             $table->timestamps();
         });

@@ -3,6 +3,8 @@
 namespace App\Http\Resources\Transaction;
 
 use App\DTOs\Purchase\TransactionCreated;
+use App\Enums\FiscalStatus;
+use App\Enums\PaymentStatus;
 use DateTimeInterface;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -20,6 +22,9 @@ class TransactionResource extends JsonResource
         /** @var TransactionCreated $transactionCreated */
         $transactionCreated = $this->resource;
 
+        $paymentStatus = PaymentStatus::tryFrom($transactionCreated->status);
+        $fiscalStatus  = FiscalStatus::tryFrom($transactionCreated->fiscalStatus) ?? FiscalStatus::PENDING;
+
         return [
             'idempotency_key'           => $transactionCreated->idempotencyKey,
             'transaction_uuid'          => $transactionCreated->transactionUuid,
@@ -29,12 +34,19 @@ class TransactionResource extends JsonResource
             'payment_amount'            => $transactionCreated->paymentAmount,
             'payment_method'            => $transactionCreated->paymentMethod,
             'card_brand'                => $transactionCreated->cardBrand,
-            'payment_status'            => $transactionCreated->status,
             'quantity'                  => $transactionCreated->quantity,
             'product_id'                => $transactionCreated->productId,
+            'payment' => [
+                'status'  => $paymentStatus?->value ?? $transactionCreated->status,
+                'message' => $paymentStatus?->userMessage(),
+            ],
+            'fiscal' => [
+                'status'  => $fiscalStatus->value,
+                'message' => $fiscalStatus->userMessage(),
+            ],
             'user' => [
-                'id' => $transactionCreated->user->id,
-                'name' => $transactionCreated->user->name,
+                'id'    => $transactionCreated->user->id,
+                'name'  => $transactionCreated->user->name,
                 'email' => $transactionCreated->user->email,
             ],
         ];

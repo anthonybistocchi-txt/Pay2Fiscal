@@ -2,92 +2,46 @@
 
 namespace App\Repositories\Transaction;
 
-use App\Models\TransactionFiscalData;
+use App\Enums\PaymentStatus;
 use App\Models\Transaction;
 use App\Repositories\Transaction\Contracts\TransactionRepositoryInterface;
 use App\Repositories\Transaction\DTO\CreateTransactionInput;
 
 final class TransactionRepository implements TransactionRepositoryInterface
 {
-    private const APPROVED_PAYMENT_STATUS = 'APPROVED';
-    private const ERROR_PAYMENT_STATUS = 'ERROR';
-    private const PROCESSING_PAYMENT_STATUS = 'PROCESSING';
-    // private const REJECTED_PAYMENT_STATUS = 'REJECTED';
-    // private const REFUNDED_PAYMENT_STATUS = 'REFUNDED';
-
     public function findById(int $transactionId): Transaction
     {
-        return Transaction::query()
-            ->with('fiscalData')
-            ->findOrFail($transactionId);
-    }
-
-    public function markAsApproved(int $transactionId): void
-    {
-        Transaction::query()->whereKey($transactionId)->update([
-            'payment_status'       => self::APPROVED_PAYMENT_STATUS,
-            'payment_date'         => now(),
-            'dispatched_at'        => now(),
-            'failed_at'            => null,
-            'failure_reason'       => null,
-            'processed_at'         => now(),
-        ]);
-
-        $this->updateFiscalProcessingResult(
-            $transactionId,
-            [
-                'fiscal_response_code' => null,
-                'fiscal_request_id'    => null,
-                'failure_reason'       => null,
-            ],
-        );
-    }
-
-    public function markAsError(int $transactionId, array $fiscalErrors): void
-    {
-        Transaction::query()->whereKey($transactionId)->update([
-            'payment_status'       => self::ERROR_PAYMENT_STATUS,
-            'payment_date'         => null,
-            'dispatched_at'        => now(),
-            'failed_at'            => now(),
-            'failure_reason'       => null,
-            'processed_at'         => now(),
-        ]);
-
-        $this->updateFiscalProcessingResult(
-            $transactionId,
-            [
-                'fiscal_response_code' => $fiscalErrors['fiscal_response_code'] ?? null,
-                'fiscal_request_id'    => $fiscalErrors['fiscal_request_id'] ?? null,
-                'failure_reason'       => $fiscalErrors['failure_reason'] ?? null,
-            ],
-        );
-    }
-
-    public function markAsProcessing(int $transactionId): void
-    {
-        Transaction::query()->whereKey($transactionId)->update([
-            'payment_status'       => self::PROCESSING_PAYMENT_STATUS,
-            'payment_date'         => null,
-            'dispatched_at'        => now(),
-            'failed_at'            => null,
-            'failure_reason'       => null,
-            'processed_at'         => null,
-        ]);
-
-        $this->updateFiscalProcessingResult(
-            $transactionId,
-            [
-                'fiscal_response_code' => null,
-                'fiscal_request_id'    => null,
-                'failure_reason'       => null,
-            ],
-        );
+        return Transaction::with('fiscalData')->findOrFail($transactionId);
     }
 
     public function create(CreateTransactionInput $input): Transaction
     {
-        return Transaction::create([
+        return Transaction::create($this->mapInputToAttributes($input));
+    }
+
+    /**
+     * @return array{0: Transaction, 1: bool}
+     */
+    public function firstOrCreateByIdempotencyKey(CreateTransactionInput $input): array
+    {
+        $existing = Transaction::query()
+            ->where('idempotency_key', $input->idempotencyKey)
+            ->first();
+
+        if ($existing !== null) 
+        {
+            return [$existing, false];
+        }
+
+        return [$this->create($input), true];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function mapInputToAttributes(CreateTransactionInput $input): array
+    {
+        return [
             'user_id'                   => $input->userId,
             'product_id'                => $input->productId,
             'payment_amount'            => $input->paymentAmount,
@@ -100,17 +54,50 @@ final class TransactionRepository implements TransactionRepositoryInterface
             'last_4_digits_card_number' => $input->last4DigitsCardNumber,
             'card_brand'                => $input->cardBrand,
             'quantity'                  => $input->quantity,
+        ];
+    }
+
+    public function markAsProcessing(Transaction $transaction): void
+    {
+        $transaction->update([
+            'payment_status' => PaymentStatus::PROCESSING,
+            'dispatched_at'  => now(),
         ]);
     }
 
-    /**
-     * @param array{fiscal_response_code: ?int, fiscal_request_id: ?string, failure_reason: ?string} $result
-     */
-    private function updateFiscalProcessingResult(int $transactionId, array $result): void
+    public function markAsApproved(Transaction $transaction, ?int $gatewayId = null): void
     {
-        TransactionFiscalData::query()->updateOrCreate(
-            ['transaction_id' => $transactionId],
-            $result,
-        );
+        $transaction->update([
+            'payment_status' => PaymentStatus::APPROVED,
+            'payment_date'   => now(),
+            'processed_at'   => now(),
+            'gateway_id'     => $gatewayId,
+            'failure_reason' => null,
+            'error_code'     => null,
+        ]);
+    }
+
+    public function markAsRejected(Transaction $transaction, array $errors): void
+    {
+        $transaction->update([
+            'payment_status' => PaymentStatus::REJECTED,
+            'payment_date'   => null,
+            'processed_at'   => now(),
+            'failed_at'      => now(),
+            'failure_reason' => $errors['error_message'] ?? null,
+            'error_code'     => $errors['error_code'] ?? null,
+        ]);
+    }
+
+    public function markAsError(Transaction $transaction, array $errors): void
+    {
+        $transaction->update([
+            'payment_status' => PaymentStatus::ERROR,
+            'payment_date'   => null,
+            'processed_at'   => now(),
+            'failed_at'      => now(),
+            'failure_reason' => $errors['error_message'] ?? null,
+            'error_code'     => $errors['error_code'] ?? null,
+        ]);
     }
 }
