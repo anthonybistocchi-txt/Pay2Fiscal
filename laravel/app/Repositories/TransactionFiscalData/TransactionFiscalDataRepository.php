@@ -64,4 +64,17 @@ final class TransactionFiscalDataRepository implements TransactionFiscalDataRepo
             'emitted_at'        => null,
         ]);
     }
+
+    public function cancelDueToPaymentFailure(?TransactionFiscalData $fiscalData, string $reason): void
+    {
+        if ($fiscalData === null || $fiscalData->fiscal_status->isFinal()) {
+            return;
+        }
+
+        $fiscalData->update([
+            'fiscal_status'  => FiscalStatus::CANCELED,
+            'failure_reason' => $reason,
+            'emitted_at'     => null,
+        ]);
+    }
 }

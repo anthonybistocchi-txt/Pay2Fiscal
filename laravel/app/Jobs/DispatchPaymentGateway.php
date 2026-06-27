@@ -6,6 +6,7 @@ use App\Enums\PaymentStatus;
 use App\Integrations\Gateway\Contracts\DispatchPaymentGatewayServiceInterface;
 use App\Models\Transaction;
 use App\Repositories\Transaction\Contracts\TransactionRepositoryInterface;
+use App\Repositories\TransactionFiscalData\Contacts\TransactionFiscalDataRepositoryInterface;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -67,6 +68,7 @@ class DispatchPaymentGateway implements ShouldBeUnique, ShouldQueue
     public function handle(
         DispatchPaymentGatewayServiceInterface $dispatchPaymentGatewayService,
         TransactionRepositoryInterface $transactionRepository,
+        TransactionFiscalDataRepositoryInterface $transactionFiscalDataRepository,
     ): void 
     {
         Log::withContext([
@@ -114,8 +116,8 @@ class DispatchPaymentGateway implements ShouldBeUnique, ShouldQueue
 
     public function failed(?Throwable $exception): void
     {
-        $transactionRepository = resolve(TransactionRepositoryInterface::class);
-
+        $transactionRepository           = resolve(TransactionRepositoryInterface::class);
+        $transactionFiscalDataRepository = resolve(TransactionFiscalDataRepositoryInterface::class);
         try 
         {
             $transaction = $transactionRepository->findById($this->transaction->id);
@@ -137,6 +139,11 @@ class DispatchPaymentGateway implements ShouldBeUnique, ShouldQueue
                 'error_message' => self::PUBLIC_FAILURE_REASON,
                 'error_code'    => $this->normalizeErrorCode($exception?->getCode()),
             ]);
+
+            $transactionFiscalDataRepository->cancelDueToPaymentFailure(
+                $transaction->fiscalData,
+                self::PUBLIC_FAILURE_REASON,
+            );
         }
 
         Log::error('Failed to dispatch transaction to payment gateway', [

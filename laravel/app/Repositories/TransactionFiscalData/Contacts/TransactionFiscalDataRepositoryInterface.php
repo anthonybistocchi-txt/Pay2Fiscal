@@ -16,4 +16,6 @@ interface TransactionFiscalDataRepositoryInterface
     public function markAsRejected(TransactionFiscalData $fiscalData, array $errors): void;
 
     public function markAsError(TransactionFiscalData $fiscalData, array $errors): void;
+
+    public function cancelDueToPaymentFailure(?TransactionFiscalData $fiscalData, string $reason): void;
 }

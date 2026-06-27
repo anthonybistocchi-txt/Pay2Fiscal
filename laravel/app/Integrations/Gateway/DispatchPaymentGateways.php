@@ -8,6 +8,7 @@ use App\Integrations\Gateway\Contracts\DispatchPaymentGatewayServiceInterface;
 use App\Models\Gateway;
 use App\Models\Transaction;
 use App\Repositories\Transaction\Contracts\TransactionRepositoryInterface;
+use App\Repositories\TransactionFiscalData\Contacts\TransactionFiscalDataRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -38,6 +39,7 @@ final class DispatchPaymentGateways implements DispatchPaymentGatewayServiceInte
 
     public function __construct(
         private readonly TransactionRepositoryInterface $transactionRepository,
+        private readonly TransactionFiscalDataRepositoryInterface $transactionFiscalDataRepository,
     ) {}
 
     public function dispatch(Transaction $transaction): void
@@ -82,6 +84,8 @@ final class DispatchPaymentGateways implements DispatchPaymentGatewayServiceInte
                 'error_message' => self::REASON_NO_GATEWAYS_AVAILABLE,
             ]);
 
+            $this->cancelFiscalForFailedPayment($transaction, self::REASON_NO_GATEWAYS_AVAILABLE);
+
             Log::error('No active payment gateways available', [
                 'transaction_id'   => $transaction->id,
                 'transaction_uuid' => $transaction->transaction_uuid,
@@ -111,6 +115,8 @@ final class DispatchPaymentGateways implements DispatchPaymentGatewayServiceInte
         $this->transactionRepository->markAsRejected($transaction, [
             'error_message' => self::REASON_ALL_GATEWAYS_REJECTED,
         ]);
+
+        $this->cancelFiscalForFailedPayment($transaction, self::REASON_ALL_GATEWAYS_REJECTED);
 
         Log::warning('All payment gateways rejected the transaction', [
             'transaction_id'   => $transaction->id,
@@ -223,6 +229,16 @@ final class DispatchPaymentGateways implements DispatchPaymentGatewayServiceInte
         ]);
 
         return true;
+    }
+
+    private function cancelFiscalForFailedPayment(Transaction $transaction, string $reason): void
+    {
+        $transaction->loadMissing('fiscalData');
+
+        $this->transactionFiscalDataRepository->cancelDueToPaymentFailure(
+            $transaction->fiscalData,
+            $reason,
+        );
     }
 
     private function buildGatewayUrl(Gateway $gateway): string
