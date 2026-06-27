@@ -2,26 +2,53 @@ services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile
-    container_name: fiscal-php
+      dockerfile: Dockerfile.php
+    container_name: pay2fiscal-php
     ports:
       - "8000:8000"
     volumes:
       - ./:/var/www/html
     environment:
+      APP_KEY: base64:2fl+KtvkdphvQy0fZQYlKQxQZvP9rH8xN3mF7wJc4s=
+      APP_ENV: local
+      APP_DEBUG: "true"
       DB_CONNECTION: pgsql
       DB_HOST: postgres
       DB_PORT: 5432
       DB_DATABASE: fiscal_php
       DB_USERNAME: fiscal
       DB_PASSWORD: fiscal
+      FISCAL_API_BASE_URL: http://node:3000
+      FISCAL_API_TIMEOUT: 30
+      FISCAL_API_DISPATCH_PATH: transactions/dispatch
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  node:
+    build:
+      context: .
+      dockerfile: Dockerfile.node
+    container_name: pay2fiscal-node
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./:/var/www/html
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_USER: fiscal
+      DATABASE_PASSWORD: fiscal
+      DATABASE_NAME: fiscal_node
     depends_on:
       postgres:
         condition: service_healthy
 
   postgres:
     image: postgres:17-alpine
-    container_name: fiscal-postgres
+    container_name: pay2fiscal-postgres
     environment:
       POSTGRES_DB: fiscal
       POSTGRES_USER: fiscal
