@@ -6,6 +6,7 @@ namespace App\Services\Purchase;
 
 use App\DTOs\Purchase\PurchaseStoreData;
 use App\DTOs\Purchase\TransactionCreated;
+use App\Enums\FiscalStatus;
 use App\Enums\PaymentStatus;
 use App\Exceptions\Purchase\InsufficientStockException;
 use App\Jobs\DispatchPaymentGateway;
@@ -36,17 +37,17 @@ final class PurchaseStoreService implements PurchaseStoreServiceInterface
 
     public function storePurchase(PurchaseStoreData $purchasePayload): TransactionCreated
     {
-        return $this->database->transaction(function () use ($purchasePayload): TransactionCreated {
-            Log::info('[Fluxo Pagamento] Início da transação de banco (compra)', [
-                'transaction_phase' => 'db_transaction',
+        return $this->database->transaction(function () use ($purchasePayload): TransactionCreated {  
+            Log::info('[Fluxo Pagamento] Início da transação de banco (compra)', [  
+                'transaction_phase' => 'db_transaction',                             // inicia a transação de banco
             ]);
 
             $product = Product::query()
-                ->with('fiscal')
+                ->with('fiscal')                                                         // carrega os dados fiscais e do produto
                 ->lockForUpdate()
                 ->findOrFail($purchasePayload->productId);
 
-            $totalPaymentAmount = $product->price * $purchasePayload->quantity;
+            $totalPaymentAmount = $product->price * $purchasePayload->quantity;                
 
             Log::info('[Fluxo Pagamento] Produto bloqueado e valor total calculado', [
                 'transaction_phase'   => 'product_locked',
@@ -60,7 +61,7 @@ final class PurchaseStoreService implements PurchaseStoreServiceInterface
                 productId:             $product->id,
                 paymentAmount:         $totalPaymentAmount,
                 paymentMethod:         $purchasePayload->paymentMethod,
-                paymentStatus:         PaymentStatus::PENDING->value,
+                paymentStatus:         PaymentStatus::PENDING->value,                     // verifica se a transação já existe, se não existir, cria uma nova transação, se existir, reutiliza a transação existente
                 idempotencyKey:        $purchasePayload->idempotencyKey,
                 transactionUuid:       Str::uuid()->toString(),
                 gatewayId:             null,
@@ -79,9 +80,9 @@ final class PurchaseStoreService implements PurchaseStoreServiceInterface
 
             if ($created) 
             {
-                $this->reserveStock($product->id, $purchasePayload->quantity);
+                $this->reserveStock($product->id, $purchasePayload->quantity);          // reserva o estoque do produto
 
-                Log::info('[Fluxo Pagamento] Estoque reservado (se existir registro de estoque)', [
+                Log::info('[Fluxo Pagamento] Estoque reservado (se existir registro de estoque)', [  
                     'transaction_phase' => 'stock_reserved',
                     'product_id'        => $product->id,
                 ]);
@@ -90,7 +91,7 @@ final class PurchaseStoreService implements PurchaseStoreServiceInterface
                     transactionId:   $persistedTransaction->id,
                     originProduct:   $product->fiscal?->origin_product,
                     ncm:             $product->fiscal?->ncm,
-                    cfop:            $product->fiscal?->cfop,
+                    cfop:            $product->fiscal?->cfop,                            // grava os dados fiscais da transação
                     cest:            $product->fiscal?->cest,
                     icmsCstCsosn:    $product->fiscal?->icms_cst_csosn,
                     pisCst:          $product->fiscal?->pis_cst,
@@ -106,14 +107,17 @@ final class PurchaseStoreService implements PurchaseStoreServiceInterface
 
                 DB::afterCommit(function () use ($persistedTransaction): void {
                     Log::info('[Fluxo Pagamento] Agendando job de envio ao gateway após commit', [
-                        'transaction_phase' => 'queue_after_commit',
+                        'transaction_phase' => 'queue_after_commit',                      // agenda o job de envio ao gateway após o commit
                         'transaction_id'    => $persistedTransaction->id,
                     ]);
-                    DispatchPaymentGateway::dispatch($persistedTransaction);
+                    DispatchPaymentGateway::dispatch($persistedTransaction);                // envia o pagamento para o gateway
                 });
-            } else {
+            } 
+            else 
+            {
                 Log::info('[Fluxo Pagamento] Idempotência: reutilizando transação existente (sem novo job)', [
-                    'transaction_phase' => 'idempotent_replay',
+
+                    'transaction_phase' => 'idempotent_replay',                         // reutiliza a transação existente
                     'transaction_id'    => $persistedTransaction->id,
                 ]);
             }
@@ -124,12 +128,14 @@ final class PurchaseStoreService implements PurchaseStoreServiceInterface
                 'payment_status'    => $persistedTransaction->payment_status->value,
             ]);
 
+            $persistedTransaction->load('fiscalData');
+
             return new TransactionCreated(
                 idempotencyKey:         $persistedTransaction->idempotency_key,
                 paymentDate:            $persistedTransaction->payment_date,
                 gatewayId:              $persistedTransaction->gateway_id,
                 last4DigitsCardNumber:  $persistedTransaction->last_4_digits_card_number,
-                paymentAmount:          $persistedTransaction->payment_amount,
+                paymentAmount:          $persistedTransaction->payment_amount,                  // retorna os dados da transação
                 paymentMethod:          $persistedTransaction->payment_method,
                 cardBrand:              $persistedTransaction->card_brand,
                 status:                 $persistedTransaction->payment_status->value,
@@ -137,6 +143,8 @@ final class PurchaseStoreService implements PurchaseStoreServiceInterface
                 user:                   $purchasePayload->user,
                 productId:              $persistedTransaction->product_id,
                 transactionUuid:        $persistedTransaction->transaction_uuid,
+                fiscalStatus:           $persistedTransaction->fiscalData?->fiscal_status->value
+                    ?? FiscalStatus::PENDING->value,
             );
         }, self::TRANSACTION_ATTEMPTS);
     }

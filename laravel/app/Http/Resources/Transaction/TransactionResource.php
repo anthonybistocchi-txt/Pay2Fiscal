@@ -23,7 +23,7 @@ class TransactionResource extends JsonResource
         $transactionCreated = $this->resource;
 
         $paymentStatus = PaymentStatus::tryFrom($transactionCreated->status);
-        $fiscalStatus  = FiscalStatus::PENDING;
+        $fiscalStatus  = FiscalStatus::tryFrom($transactionCreated->fiscalStatus) ?? FiscalStatus::PENDING;
 
         return [
             'idempotency_key'           => $transactionCreated->idempotencyKey,
