@@ -3,7 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import databaseConfig from './database/database.config';
 import { NfeModule } from './nfe/nfe.module';
-import { PaymentsModule } from './payment-gateway/payment-gateway.module';
+import { PaymentGatewayModule } from './payment-gateway/payment-gateway.module';
 
 @Module({
   imports: [
@@ -16,7 +16,7 @@ import { PaymentsModule } from './payment-gateway/payment-gateway.module';
       useFactory: (configService: ConfigService) =>
         configService.getOrThrow('database'),
     }),
-    PaymentsModule,
+    PaymentGatewayModule,
     NfeModule,
   ],
 })

@@ -48,6 +48,9 @@ export class Transaction {
   @Column({ type: 'int' })
   quantity: number;
 
+  @Column({ name: 'payment_date', type: 'timestamp', nullable: true })
+  paymentDate: Date | null;
+
   @OneToOne(() => TransactionFiscalData, (fiscalData) => fiscalData.transaction)
   fiscalData: TransactionFiscalData;
 
