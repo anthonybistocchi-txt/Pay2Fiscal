@@ -5,7 +5,9 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { randomUUID } from 'node:crypto';
 import { Repository } from 'typeorm';
+import { assertPayloadMatch } from '../common/utils/payload-match.util';
 import { DispatchNfeDto, EmitterDto } from './dto/dispatch-nfe.dto';
 import { Transaction } from './entities/transaction.entity';
 import { PaymentStatus } from './enums/payment-status.enum';
@@ -18,6 +20,15 @@ const FISCAL_DISPATCHABLE_STATUSES: FiscalStatus[] = [
   FiscalStatus.PROCESSING,
 ];
 
+export type DispatchNfeSuccessResponse = {
+  request_id: string;
+  transaction_uuid: string;
+  status: 'emitted';
+  fiscal_status: FiscalStatus;
+  emitter_cnpj: string;
+  emitted_at: string;
+};
+
 @Injectable()
 export class NfeService {
   constructor(
@@ -29,7 +40,7 @@ export class NfeService {
     private readonly transactionFiscalDataRepository: Repository<TransactionFiscalData>,
   ) {}
 
-  async dispatch(payload: DispatchNfeDto) {
+  async dispatch(payload: DispatchNfeDto): Promise<DispatchNfeSuccessResponse> {
     const [transaction, fiscalData, emitter] = await Promise.all([
       this.getTransactionValidated(payload),
       this.getTransactionFiscalDataValidated(payload),
@@ -39,11 +50,21 @@ export class NfeService {
     this.assertFiscalDataBelongsToTransaction(fiscalData, transaction);
     this.assertTransactionPayloadMatches(transaction, payload);
 
+    return this.buildSuccessResponse(transaction, fiscalData, emitter);
+  }
+
+  private buildSuccessResponse(
+    transaction: Transaction,
+    fiscalData: TransactionFiscalData,
+    emitter: Emitter,
+  ): DispatchNfeSuccessResponse {
     return {
+      request_id: randomUUID(),
       transaction_uuid: transaction.transactionUuid,
+      status: 'emitted',
       fiscal_status: fiscalData.fiscalStatus,
       emitter_cnpj: emitter.cnpj,
-      status: 'validated',
+      emitted_at: new Date().toISOString(),
     };
   }
 
@@ -51,28 +72,28 @@ export class NfeService {
     transaction: Transaction,
     payload: DispatchNfeDto,
   ): void {
-    this.assertMatch('user_id', payload.user_id, transaction.userId);
-    this.assertMatch('product_id', payload.product_id, transaction.productId);
-    this.assertMatch('quantity', payload.quantity, transaction.quantity);
-    this.assertMatch(
+    assertPayloadMatch('user_id', payload.user_id, transaction.userId);
+    assertPayloadMatch('product_id', payload.product_id, transaction.productId);
+    assertPayloadMatch('quantity', payload.quantity, transaction.quantity);
+    assertPayloadMatch(
       'payment_amount',
       payload.payment_amount,
       transaction.paymentAmount,
     );
-    this.assertMatch(
+    assertPayloadMatch(
       'payment_method',
       payload.payment_method,
       transaction.paymentMethod,
     );
-    this.assertMatch(
+    assertPayloadMatch(
       'payment_status',
       payload.payment_status,
       transaction.paymentStatus,
     );
-    this.assertMatch('card_brand', payload.card_brand, transaction.cardBrand);
-    this.assertMatch(
+    assertPayloadMatch('card_brand', payload.card_brand ?? null, transaction.cardBrand);
+    assertPayloadMatch(
       'last_4_digits_card',
-      payload.last_4_digits_card,
+      payload.last_4_digits_card ?? null,
       transaction.last4DigitsCardNumber,
     );
   }
@@ -91,9 +112,11 @@ export class NfeService {
       throw new NotFoundException('Transaction not found or not approved');
     }
 
-    if (payload.idempotency_key !== transaction.idempotencyKey) {
-      throw new BadRequestException('Transaction idempotency key mismatch');
-    }
+    assertPayloadMatch(
+      'idempotency_key',
+      payload.idempotency_key,
+      transaction.idempotencyKey,
+    );
 
     return transaction;
   }
@@ -128,21 +151,21 @@ export class NfeService {
 
     const payloadFiscal = payload.transaction_fiscal_data;
 
-    this.assertMatch(
+    assertPayloadMatch(
       'origin_product',
       payloadFiscal.origin_product,
       fiscalData.originProduct,
     );
-    this.assertMatch('ncm', payloadFiscal.ncm, fiscalData.ncm);
-    this.assertMatch('cfop', payloadFiscal.cfop, fiscalData.cfop);
-    this.assertMatch('cest', payloadFiscal.cest, fiscalData.cest);
-    this.assertMatch(
+    assertPayloadMatch('ncm', payloadFiscal.ncm, fiscalData.ncm);
+    assertPayloadMatch('cfop', payloadFiscal.cfop, fiscalData.cfop);
+    assertPayloadMatch('cest', payloadFiscal.cest, fiscalData.cest);
+    assertPayloadMatch(
       'icms_cst_csosn',
       payloadFiscal.icms_cst_csosn,
       fiscalData.icmsCstCsosn,
     );
-    this.assertMatch('pis_cst', payloadFiscal.pis_cst, fiscalData.pisCst);
-    this.assertMatch(
+    assertPayloadMatch('pis_cst', payloadFiscal.pis_cst, fiscalData.pisCst);
+    assertPayloadMatch(
       'cofins_cst',
       payloadFiscal.cofins_cst,
       fiscalData.cofinsCst,
@@ -160,75 +183,47 @@ export class NfeService {
       throw new NotFoundException('Emitter not found');
     }
 
-    this.assertMatch('emitter.legal_name', emitter.legal_name, emitterEntity.legalName);
-    this.assertMatch('emitter.trade_name', emitter.trade_name, emitterEntity.tradeName);
-    this.assertMatch('emitter.ie', emitter.ie, emitterEntity.ie);
-    this.assertMatch('emitter.im', emitter.im, emitterEntity.im);
-    this.assertMatch('emitter.tax_regime', emitter.tax_regime, emitterEntity.taxRegime);
-    this.assertMatch('emitter.crt', emitter.crt, emitterEntity.crt);
-    this.assertMatch('emitter.email', emitter.email, emitterEntity.email);
-    this.assertMatch('emitter.phone', emitter.phone, emitterEntity.phone);
-    this.assertMatch(
+    assertPayloadMatch('emitter.legal_name', emitter.legal_name, emitterEntity.legalName);
+    assertPayloadMatch('emitter.trade_name', emitter.trade_name ?? null, emitterEntity.tradeName);
+    assertPayloadMatch('emitter.ie', emitter.ie ?? null, emitterEntity.ie);
+    assertPayloadMatch('emitter.im', emitter.im ?? null, emitterEntity.im);
+    assertPayloadMatch('emitter.tax_regime', emitter.tax_regime, emitterEntity.taxRegime);
+    assertPayloadMatch('emitter.crt', emitter.crt, emitterEntity.crt);
+    assertPayloadMatch('emitter.email', emitter.email ?? null, emitterEntity.email);
+    assertPayloadMatch('emitter.phone', emitter.phone ?? null, emitterEntity.phone);
+    assertPayloadMatch(
       'emitter.address.street',
       emitter.address.street,
       emitterEntity.street,
     );
-    this.assertMatch(
+    assertPayloadMatch(
       'emitter.address.number',
       emitter.address.number,
       emitterEntity.number,
     );
-    this.assertMatch(
+    assertPayloadMatch(
       'emitter.address.complement',
-      emitter.address.complement,
+      emitter.address.complement ?? null,
       emitterEntity.complement,
     );
-    this.assertMatch(
+    assertPayloadMatch(
       'emitter.address.neighborhood',
-      emitter.address.neighborhood,
+      emitter.address.neighborhood ?? null,
       emitterEntity.neighborhood,
     );
-    this.assertMatch('emitter.address.city', emitter.address.city, emitterEntity.city);
-    this.assertMatch('emitter.address.state', emitter.address.state, emitterEntity.state);
-    this.assertMatch(
+    assertPayloadMatch('emitter.address.city', emitter.address.city, emitterEntity.city);
+    assertPayloadMatch('emitter.address.state', emitter.address.state, emitterEntity.state);
+    assertPayloadMatch(
       'emitter.address.zip_code',
       emitter.address.zip_code,
       emitterEntity.zipCode,
     );
-    this.assertMatch(
+    assertPayloadMatch(
       'emitter.address.country',
       emitter.address.country,
       emitterEntity.country,
     );
 
     return emitterEntity;
-  }
-
-  private assertMatch(
-    field: string,
-    payloadValue: unknown,
-    entityValue: unknown,
-  ): void {
-    if (this.valuesMatch(payloadValue, entityValue)) {
-      return;
-    }
-
-    throw new BadRequestException(`${field} mismatch`);
-  }
-
-  private valuesMatch(payloadValue: unknown, entityValue: unknown): boolean {
-    if (payloadValue === entityValue) {
-      return true;
-    }
-
-    if (payloadValue == null && entityValue == null) {
-      return true;
-    }
-
-    if (payloadValue == null || entityValue == null) {
-      return false;
-    }
-
-    return String(payloadValue) === String(entityValue);
   }
 }

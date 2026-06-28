@@ -1,16 +1,19 @@
 import {
-  IsString,
+  IsEnum,
   IsNumber,
-  IsUUID,
-  IsArray,
-  ValidateNested,
   IsObject,
+  IsOptional,
+  IsString,
+  IsUUID,
+  ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { PaymentMethod } from '../enums/payment-method.enum';
+import { PaymentStatus } from '../enums/payment-status.enum';
 
 export class TransactionFiscalDataDto {
-  @IsString({ message: 'origin_product must be a string.' })
-  origin_product: string;
+  @IsNumber({}, { message: 'origin_product must be a number.' })
+  origin_product: number;
 
   @IsString({ message: 'ncm must be a string.' })
   ncm: string;
@@ -38,11 +41,13 @@ export class EmitterAddressDto {
   @IsString({ message: 'address.number must be a string.' })
   number: string;
 
+  @IsOptional()
   @IsString({ message: 'address.complement must be a string.' })
-  complement: string;
+  complement?: string | null;
 
+  @IsOptional()
   @IsString({ message: 'address.neighborhood must be a string.' })
-  neighborhood: string;
+  neighborhood?: string | null;
 
   @IsString({ message: 'address.city must be a string.' })
   city: string;
@@ -61,17 +66,20 @@ export class EmitterDto {
   @IsString({ message: 'emitter.legal_name must be a string.' })
   legal_name: string;
 
+  @IsOptional()
   @IsString({ message: 'emitter.trade_name must be a string.' })
-  trade_name: string;
+  trade_name?: string | null;
 
   @IsString({ message: 'emitter.cnpj must be a string.' })
   cnpj: string;
 
+  @IsOptional()
   @IsString({ message: 'emitter.ie must be a string.' })
-  ie: string;
+  ie?: string | null;
 
+  @IsOptional()
   @IsString({ message: 'emitter.im must be a string.' })
-  im: string;
+  im?: string | null;
 
   @IsString({ message: 'emitter.tax_regime must be a string.' })
   tax_regime: string;
@@ -83,11 +91,13 @@ export class EmitterDto {
   @Type(() => EmitterAddressDto)
   address: EmitterAddressDto;
 
+  @IsOptional()
   @IsString({ message: 'emitter.email must be a string.' })
-  email: string;
+  email?: string | null;
 
+  @IsOptional()
   @IsString({ message: 'emitter.phone must be a string.' })
-  phone: string;
+  phone?: string | null;
 }
 
 export class DispatchNfeDto {
@@ -109,22 +119,24 @@ export class DispatchNfeDto {
   @IsNumber({}, { message: 'payment_amount must be a number.' })
   payment_amount: number;
 
-  @IsString({ message: 'payment_method must be a string.' })
-  payment_method: string;
+  @IsEnum(PaymentMethod, { message: 'payment_method must be a valid payment method.' })
+  payment_method: PaymentMethod;
 
-  @IsString({ message: 'payment_status must be a string.' })
-  payment_status: string;
+  @IsEnum(PaymentStatus, { message: 'payment_status must be a valid payment status.' })
+  payment_status: PaymentStatus;
 
+  @IsOptional()
   @IsString({ message: 'card_brand must be a string.' })
-  card_brand: string;
+  card_brand?: string | null;
 
+  @IsOptional()
   @IsString({ message: 'last_4_digits_card must be a string.' })
-  last_4_digits_card: string;
+  last_4_digits_card?: string | null;
 
   @IsObject({ message: 'transaction_fiscal_data must be an object.' })
   @ValidateNested({ message: 'transaction_fiscal_data must be a valid object.' })
   @Type(() => TransactionFiscalDataDto)
-  transaction_fiscal_data : TransactionFiscalDataDto;
+  transaction_fiscal_data: TransactionFiscalDataDto;
 
   @ValidateNested({ message: 'emitter must be a valid object.' })
   @Type(() => EmitterDto)
