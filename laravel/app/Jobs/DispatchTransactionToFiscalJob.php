@@ -3,7 +3,7 @@
 namespace App\Jobs;
 
 use App\Enums\FiscalStatus;
-use App\Integrations\Fiscal\Contracts\DispatchTransactionToFiscalServiceInterface;
+use App\Integrations\Fiscal\Contracts\DispatchTransactionToFiscalIntegrationInterface;
 use App\Models\Transaction;
 use App\Repositories\Transaction\Contracts\TransactionRepositoryInterface;
 use App\Repositories\TransactionFiscalData\Contacts\TransactionFiscalDataRepositoryInterface;
@@ -15,6 +15,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use RuntimeException;
 use Throwable;
 
 class DispatchTransactionToFiscalJob implements ShouldBeUnique, ShouldQueue
@@ -64,7 +65,7 @@ class DispatchTransactionToFiscalJob implements ShouldBeUnique, ShouldQueue
         return [30, 90, 300, 900, 1800];
     }
 
-    public function handle(DispatchTransactionToFiscalServiceInterface $dispatchTransactionToFiscal): void
+    public function handle(DispatchTransactionToFiscalIntegrationInterface $dispatchTransactionToFiscalIntegration): void
     {
         Log::withContext([
             'payment_flow'       => true,
@@ -78,8 +79,20 @@ class DispatchTransactionToFiscalJob implements ShouldBeUnique, ShouldQueue
             'job_attempt' => $this->attempts(),
         ]);
 
-        $dispatchTransactionToFiscal->dispatch($this->transaction);
-
+        try {
+            $dispatchTransactionToFiscalIntegration->dispatch($this->transaction);
+        } catch (RuntimeException $exception) {
+            Log::error('Fiscal dispatch failed', [
+                'transaction_id'   => $this->transaction->id,
+                'transaction_uuid' => $this->transaction->transaction_uuid,
+                'job_attempts'     => $this->attempts(),
+                'error_class'      => $exception ? $exception::class : null,
+                'error_message'    => $exception?->getMessage(),
+                'error_code'       => $exception?->getCode(),
+                'error_file'       => $exception?->getFile(),
+                'error_line'       => $exception?->getLine(),
+            ]);
+        }
         Log::info('[Fluxo Pagamento] Job DispatchTransactionToFiscalJob concluiu handle sem exceção');
     }
 
@@ -106,7 +119,7 @@ class DispatchTransactionToFiscalJob implements ShouldBeUnique, ShouldQueue
 
         $fiscalData = $transaction->fiscalData;
 
-        if ($fiscalData !== null && $fiscalData->fiscal_status !== FiscalStatus::ERROR && $fiscalData->fiscal_status !== FiscalStatus::REJECTED) {
+        if ($fiscalData !== null && ! $fiscalData->fiscal_status->isFinal()) {
             $fiscalDataRepository->markAsError($fiscalData, [
                 'error_message' => self::PUBLIC_FAILURE_REASON,
                 'error_code'    => $this->normalizeErrorCode($exception?->getCode()),

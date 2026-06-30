@@ -17,7 +17,7 @@ return new class extends Migration
                 ->constrained('transactions')
                 ->cascadeOnDelete()
                 ->unique();
-            $table->enum('fiscal_status', ['PENDING', 'PROCESSING', 'EMITTED', 'REJECTED', 'ERROR', 'CANCELED'])
+            $table->enum('fiscal_status', ['PENDING', 'PROCESSING', 'EMITTED', 'REJECTED', 'ERROR', 'CANCELED', 'DENIED'])
                 ->default('PENDING');
             $table->unsignedSmallInteger('origin_product')->nullable();
             $table->string('ncm', 8)->nullable();

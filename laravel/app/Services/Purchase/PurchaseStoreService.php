@@ -61,7 +61,7 @@ final class PurchaseStoreService implements PurchaseStoreServiceInterface
                 productId:             $product->id,
                 paymentAmount:         $totalPaymentAmount,
                 paymentMethod:         $purchasePayload->paymentMethod,
-                paymentStatus:         PaymentStatus::PENDING->value,                     // verifica se a transação já existe, se não existir, cria uma nova transação, se existir, reutiliza a transação existente
+                paymentStatus:         PaymentStatus::PENDING->value,                     //se não existir, cria uma nova transação, se existir, reutiliza a transação existente
                 idempotencyKey:        $purchasePayload->idempotencyKey,
                 transactionUuid:       Str::uuid()->toString(),
                 gatewayId:             null,

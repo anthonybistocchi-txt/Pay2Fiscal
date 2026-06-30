@@ -20,7 +20,7 @@ enum FiscalStatus: string
     case REJECTED   = 'REJECTED';
     case ERROR      = 'ERROR';
     case CANCELED   = 'CANCELED';
-
+    case DENIED     = 'DENIED';
     /**
      * Human readable, user-safe message describing the current fiscal state.
      */
@@ -33,13 +33,14 @@ enum FiscalStatus: string
             self::REJECTED   => 'Fiscal document was rejected. Please verify the fiscal data and try again.',
             self::ERROR      => 'Fiscal document could not be emitted at this time. A new attempt will be made shortly.',
             self::CANCELED   => 'Fiscal document was canceled.',
+            self::DENIED     => 'Fiscal document was denied due to tax irregularity. The invoice number cannot be reused.',
         };
     }
 
     public function isFinal(): bool
     {
         return match ($this) {
-            self::EMITTED, self::REJECTED, self::ERROR, self::CANCELED => true,
+            self::EMITTED, self::REJECTED, self::ERROR, self::CANCELED, self::DENIED => true,
             default                                                    => false,
         };
     }

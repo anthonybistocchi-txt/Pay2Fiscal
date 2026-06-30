@@ -21,8 +21,9 @@ export class TransactionFiscalDataDto {
   @IsString({ message: 'cfop must be a string.' })
   cfop: string;
 
+  @IsOptional()
   @IsString({ message: 'cest must be a string.' })
-  cest: string;
+  cest?: string | null;
 
   @IsString({ message: 'icms_cst_csosn must be a string.' })
   icms_cst_csosn: string;

@@ -13,7 +13,7 @@ class ProductSeeder extends Seeder
         $products = [
             [
                 'name' => 'Café torrado e moído 500g',
-                'description' => 'Café torrado e moído, embalagem 500g.',
+                'description' => 'Café torrado e moído, embalagem 500g. Use para simular EMITTED (NCM real).',
                 'price' => 1890,
                 'fiscal' => [
                     // 0 = Nacional

@@ -54,6 +54,17 @@ final class TransactionFiscalDataRepository implements TransactionFiscalDataRepo
         ]);
     }
 
+    public function markAsDenied(TransactionFiscalData $fiscalData, array $errors): void
+    {
+        $fiscalData->update([
+            'fiscal_status'     => FiscalStatus::DENIED,
+            'fiscal_request_id' => $errors['fiscal_request_id'] ?? $fiscalData->fiscal_request_id,
+            'failure_reason'    => $errors['error_message'] ?? null,
+            'error_code'        => $errors['error_code'] ?? null,
+            'emitted_at'        => null,
+        ]);
+    }
+
     public function markAsError(TransactionFiscalData $fiscalData, array $errors): void
     {
         $fiscalData->update([

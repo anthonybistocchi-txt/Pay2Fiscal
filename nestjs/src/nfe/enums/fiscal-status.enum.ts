@@ -5,4 +5,5 @@ export enum FiscalStatus {
   REJECTED = 'REJECTED',
   ERROR = 'ERROR',
   CANCELED = 'CANCELED',
+  DENIED = 'DENIED',
 }
