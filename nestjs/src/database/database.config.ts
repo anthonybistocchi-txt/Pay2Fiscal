@@ -9,8 +9,9 @@ export default registerAs(
     port: Number(process.env.DATABASE_PORT ?? 5432),
     username: process.env.DATABASE_USER ?? 'fiscal',
     password: process.env.DATABASE_PASSWORD ?? 'fiscal',
-    database: process.env.DATABASE_NAME ?? 'fiscal_node',
+    database: process.env.DATABASE_NAME ?? 'fiscal_php',
     autoLoadEntities: true,
-    synchronize: process.env.NODE_ENV !== 'production',
+    // Schema is owned by Laravel migrations; Nest only maps existing tables.
+    synchronize: false,
   }),
 );

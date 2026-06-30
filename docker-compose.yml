@@ -9,7 +9,7 @@ services:
     volumes:
       - ./:/var/www/html
     environment:
-      APP_KEY: base64:2fl+KtvkdphvQy0fZQYlKQxQZvP9rH8xN3mF7wJc4s=
+      APP_KEY: base64:hOT2MJ5nKtalAFUVJxMgRRi+RBP4BqCm6kRwW9JPDOg=
       APP_ENV: local
       APP_DEBUG: "true"
       DB_CONNECTION: pgsql
@@ -41,7 +41,7 @@ services:
       DATABASE_PORT: 5432
       DATABASE_USER: fiscal
       DATABASE_PASSWORD: fiscal
-      DATABASE_NAME: fiscal_node
+      DATABASE_NAME: fiscal_php
     depends_on:
       postgres:
         condition: service_healthy
