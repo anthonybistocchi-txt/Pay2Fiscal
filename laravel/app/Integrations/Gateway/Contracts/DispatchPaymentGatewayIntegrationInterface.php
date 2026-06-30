@@ -4,7 +4,7 @@ namespace App\Integrations\Gateway\Contracts;
 
 use App\Models\Transaction;
 
-interface DispatchPaymentGatewayServiceInterface
+interface DispatchPaymentGatewayIntegrationInterface
 {
     /**
      * Loads the transaction by primary key and forwards it to the active payment gateways

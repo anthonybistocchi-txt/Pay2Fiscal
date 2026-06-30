@@ -3,7 +3,7 @@
 namespace App\Jobs;
 
 use App\Enums\PaymentStatus;
-use App\Integrations\Gateway\Contracts\DispatchPaymentGatewayServiceInterface;
+use App\Integrations\Gateway\Contracts\DispatchPaymentGatewayIntegrationInterface;
 use App\Models\Transaction;
 use App\Repositories\Transaction\Contracts\TransactionRepositoryInterface;
 use App\Repositories\TransactionFiscalData\Contacts\TransactionFiscalDataRepositoryInterface;
@@ -35,7 +35,7 @@ class DispatchPaymentGateway implements ShouldBeUnique, ShouldQueue
 
     /**
      * Wall-clock budget per attempt. Must be greater than the HTTP timeout
-     * inside DispatchPaymentGateways so the worker is not killed mid-request.
+     * inside DispatchPaymentGatewayIntegration so the worker is not killed mid-request.
      */
     public int $timeout = 45;
 
@@ -66,7 +66,7 @@ class DispatchPaymentGateway implements ShouldBeUnique, ShouldQueue
     }
 
     public function handle(
-        DispatchPaymentGatewayServiceInterface $dispatchPaymentGatewayService,
+        DispatchPaymentGatewayIntegrationInterface $dispatchPaymentGatewayIntegration,
         TransactionRepositoryInterface $transactionRepository,
         TransactionFiscalDataRepositoryInterface $transactionFiscalDataRepository,
     ): void 
@@ -109,7 +109,7 @@ class DispatchPaymentGateway implements ShouldBeUnique, ShouldQueue
         }
 
         Log::info('[Fluxo Pagamento] Chamando integração de gateways (HTTP)');
-        $dispatchPaymentGatewayService->dispatch($this->transaction);
+        $dispatchPaymentGatewayIntegration->dispatch($this->transaction);
 
         Log::info('[Fluxo Pagamento] Job DispatchPaymentGateway concluiu handle sem exceção');
     }
