@@ -1,0 +1,9 @@
+export enum FiscalStatus {
+  PENDING = 'PENDING',
+  PROCESSING = 'PROCESSING',
+  EMITTED = 'EMITTED',
+  REJECTED = 'REJECTED',
+  ERROR = 'ERROR',
+  CANCELED = 'CANCELED',
+  DENIED = 'DENIED',
+}

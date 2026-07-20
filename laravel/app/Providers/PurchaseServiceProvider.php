@@ -2,10 +2,10 @@
 
 namespace App\Providers;
 
-use App\Integrations\Fiscal\Contracts\DispatchTransactionToFiscalServiceInterface;
-use App\Integrations\Fiscal\DispatchTransactionToFiscalService;
-use App\Integrations\Gateway\Contracts\DispatchPaymentGatewayServiceInterface;
-use App\Integrations\Gateway\DispatchPaymentGateways;
+use App\Integrations\Fiscal\Contracts\DispatchTransactionToFiscalIntegrationInterface;
+use App\Integrations\Fiscal\DispatchTransactionToFiscalIntegration;
+use App\Integrations\Gateway\Contracts\DispatchPaymentGatewayIntegrationInterface;
+use App\Integrations\Gateway\DispatchPaymentGatewayIntegration;
 use App\Repositories\Transaction\Contracts\TransactionRepositoryInterface;
 use App\Repositories\Transaction\TransactionRepository;
 use App\Repositories\TransactionFiscalData\Contacts\TransactionFiscalDataRepositoryInterface;
@@ -26,8 +26,8 @@ class PurchaseServiceProvider extends ServiceProvider
         PurchaseStoreServiceInterface::class                => PurchaseStoreService::class,
         TransactionRepositoryInterface::class               => TransactionRepository::class,
         TransactionFiscalDataRepositoryInterface::class     => TransactionFiscalDataRepository::class,
-        DispatchTransactionToFiscalServiceInterface::class  => DispatchTransactionToFiscalService::class,
-        DispatchPaymentGatewayServiceInterface::class       => DispatchPaymentGateways::class,
+        DispatchTransactionToFiscalIntegrationInterface::class => DispatchTransactionToFiscalIntegration::class,
+        DispatchPaymentGatewayIntegrationInterface::class      => DispatchPaymentGatewayIntegration::class,
     ];
 
     public function register(): void

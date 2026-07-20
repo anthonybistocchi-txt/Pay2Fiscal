@@ -9,7 +9,7 @@ use Illuminate\Http\Client\RequestException;
 /**
  * Sends a persisted transaction to the fiscal microservice for asynchronous processing.
  */
-interface DispatchTransactionToFiscalServiceInterface
+interface DispatchTransactionToFiscalIntegrationInterface
 {
     /**
      * Loads the transaction by primary key and forwards it to the fiscal service.
@@ -21,4 +21,3 @@ interface DispatchTransactionToFiscalServiceInterface
      */
     public function dispatch(Transaction $transaction): void;
 }
-

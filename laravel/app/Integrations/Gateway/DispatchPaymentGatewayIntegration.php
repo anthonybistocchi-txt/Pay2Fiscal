@@ -4,7 +4,7 @@ namespace App\Integrations\Gateway;
 
 use App\Enums\PaymentStatus;
 use App\Events\TransactionApproved;
-use App\Integrations\Gateway\Contracts\DispatchPaymentGatewayServiceInterface;
+use App\Integrations\Gateway\Contracts\DispatchPaymentGatewayIntegrationInterface;
 use App\Models\Gateway;
 use App\Models\Transaction;
 use App\Repositories\Transaction\Contracts\TransactionRepositoryInterface;
@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Log;
 use RuntimeException;
 use Throwable;
 
-final class DispatchPaymentGateways implements DispatchPaymentGatewayServiceInterface
+final class DispatchPaymentGatewayIntegration implements DispatchPaymentGatewayIntegrationInterface
 {
     /**
      * Time-to-first-byte budget for the gateway. Anything beyond this is
@@ -44,7 +44,7 @@ final class DispatchPaymentGateways implements DispatchPaymentGatewayServiceInte
 
     public function dispatch(Transaction $transaction): void
     {
-        Log::info('[Fluxo Pagamento] DispatchPaymentGateways::dispatch iniciado', [
+        Log::info('[Fluxo Pagamento] DispatchPaymentGatewayIntegration::dispatch iniciado', [
             'transaction_phase' => 'gateway_integration',
             'transaction_id'    => $transaction->id,
             'transaction_uuid'  => $transaction->transaction_uuid,

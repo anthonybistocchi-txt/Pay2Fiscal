@@ -3,7 +3,7 @@
 namespace App\Integrations\Fiscal;
 
 use App\Enums\FiscalStatus;
-use App\Integrations\Fiscal\Contracts\DispatchTransactionToFiscalServiceInterface;
+use App\Integrations\Fiscal\Contracts\DispatchTransactionToFiscalIntegrationInterface;
 use App\Models\Emitter;
 use App\Models\Transaction;
 use App\Repositories\TransactionFiscalData\Contacts\TransactionFiscalDataRepositoryInterface;
@@ -12,21 +12,22 @@ use Illuminate\Support\Facades\Log;
 use RuntimeException;
 use Throwable;
 
-final class DispatchTransactionToFiscalService implements DispatchTransactionToFiscalServiceInterface
+final class DispatchTransactionToFiscalIntegration implements DispatchTransactionToFiscalIntegrationInterface
 {
     /**
      * User-safe failure reason stored on the fiscal data row so consumers
      * can see why the fiscal document was not emitted, without internals.
      */
     private const REASON_FISCAL_REJECTED = 'Fiscal document was rejected by the fiscal service. Please verify the fiscal data.';
-    private const TIMEOUT = 30;
+    private const TIMEOUT = 50;
+
     public function __construct(
         private readonly TransactionFiscalDataRepositoryInterface $fiscalDataRepository,
     ) {}
 
     public function dispatch(Transaction $transaction): void
     {
-        Log::info('[Fluxo Pagamento] DispatchTransactionToFiscalService::dispatch iniciado', [
+        Log::info('[Fluxo Pagamento] DispatchTransactionToFiscalIntegration::dispatch iniciado', [
             'payment_flow'      => true,
             'transaction_phase' => 'fiscal_integration',
             'transaction_id'    => $transaction->id,
@@ -106,7 +107,7 @@ final class DispatchTransactionToFiscalService implements DispatchTransactionToF
             throw $exception;
         }
 
-        if ($response->successful()) 
+        if ($response->successful() && $response->json('status') === 'EMITTED') 
         {
             $this->fiscalDataRepository->markAsEmitted(
                 $fiscalData,
@@ -122,19 +123,68 @@ final class DispatchTransactionToFiscalService implements DispatchTransactionToF
             return;
         }
 
-        $this->fiscalDataRepository->markAsRejected($fiscalData, [
-            'error_message'     => self::REASON_FISCAL_REJECTED,
-            'error_code'        => $response->status(),
-            'fiscal_request_id' => $response->json('request_id'),
-        ]);
+        if ($response->status() === 202 && $response->json('status') === 'PROCESSING') {
+            $this->fiscalDataRepository->markAsProcessing($fiscalData);
 
-        Log::warning('Fiscal service rejected transaction dispatch', [
-            'transaction_id'    => $transaction->id,
-            'transaction_uuid'  => $transaction->transaction_uuid,
-            'response_status'   => $response->status(),
-            'fiscal_request_id' => $response->json('request_id'),
-            'fiscal_reason'     => $response->json('failure_reason'),
-        ]);
+            Log::info('Fiscal document still processing at tax authority', [
+                'transaction_id'    => $transaction->id,
+                'transaction_uuid'  => $transaction->transaction_uuid,
+                'fiscal_request_id' => $response->json('request_id'),
+            ]);
+
+            return;
+        }
+
+        if ($response->json('status') === 'REJECTED') {
+            $this->fiscalDataRepository->markAsRejected($fiscalData, [
+                'error_message'     => $response->json('failure_reason'),
+                'error_code'        => $response->status(),
+                'fiscal_request_id' => $response->json('request_id'),
+            ]);
+
+            Log::warning('Fiscal document rejected', [
+                'transaction_id'    => $transaction->id,
+                'transaction_uuid'  => $transaction->transaction_uuid,
+                'fiscal_request_id' => $response->json('request_id'),
+                'fiscal_reason'     => $response->json('failure_reason'),
+            ]);
+
+            return;
+        }
+
+        if ($response->json('status') === 'DENIED') {
+            $this->fiscalDataRepository->markAsDenied($fiscalData, [
+                'error_message'     => $response->json('failure_reason'),
+                'error_code'        => $response->status(),
+                'fiscal_request_id' => $response->json('request_id'),
+            ]);
+
+            Log::warning('Fiscal document denied', [
+                'transaction_id'    => $transaction->id,
+                'transaction_uuid'  => $transaction->transaction_uuid,
+                'fiscal_request_id' => $response->json('request_id'),
+                'fiscal_reason'     => $response->json('failure_reason'),
+            ]);
+
+            return;
+        }
+
+        if ($response->json('status') === 'ERROR') {
+            $this->fiscalDataRepository->markAsError($fiscalData, [
+                'error_message'     => $response->json('failure_reason'),
+                'error_code'        => $response->status(),
+                'fiscal_request_id' => $response->json('request_id'),
+            ]);
+
+            Log::error('Fiscal document error', [
+                'transaction_id'    => $transaction->id,
+                'transaction_uuid'  => $transaction->transaction_uuid,
+                'fiscal_request_id' => $response->json('request_id'),
+                'fiscal_reason'     => $response->json('failure_reason'),
+            ]);
+
+            return;
+        }
 
         throw new RuntimeException(sprintf(
             'Fiscal service rejected transaction %d (status %d).',
